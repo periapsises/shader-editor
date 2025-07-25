@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live GLSL Shader Editor</title>
+    <link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <div class="toolbar">
+            <div class="toolbar-brand">
+                <h1>Live Shader Editor</h1>
+            </div>
+            
+            <div class="toolbar-sections">
+                <!-- File operations -->
+                <div class="toolbar-section">
+                    <span class="toolbar-section-label">File</span>
+                    <div class="toolbar-buttons">
+                        <div class="toolbar-btn-group">
+                            <button id="saveBtn" class="toolbar-btn" title="Save shader code">
+                                <span class="btn-icon">💾</span>
+                                <span class="btn-text">Save</span>
+                            </button>
+                            <button id="saveDropdownBtn" class="toolbar-btn dropdown-toggle" title="Save options">
+                                <span class="btn-icon">▼</span>
+                            </button>
+                            <div id="saveDropdown" class="dropdown-menu">
+                                <button class="dropdown-item" data-save-type="combined">Both Shaders</button>
+                                <button class="dropdown-item" data-save-type="fragment">Fragment Only</button>
+                                <button class="dropdown-item" data-save-type="vertex">Vertex Only</button>
+                            </div>
+                        </div>
+                        <button id="examplesBtn" class="toolbar-btn" title="Browse example shaders">
+                            <span class="btn-icon">📚</span>
+                            <span class="btn-text">Examples</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Project operations -->
+                <div class="toolbar-section">
+                    <span class="toolbar-section-label">Project</span>
+                    <div class="toolbar-buttons">
+                        <button id="exportBtn" class="toolbar-btn" title="Export project">
+                            <span class="btn-icon">📦</span>
+                            <span class="btn-text">Export</span>
+                        </button>
+                        <button id="loadBtn" class="toolbar-btn" title="Load project">
+                            <span class="btn-icon">📁</span>
+                            <span class="btn-text">Load</span>
+                        </button>
+                        <input type="file" id="loadInput" accept=".json" style="display: none;">
+                    </div>
+                </div>
+                
+                <!-- Compilation controls -->
+                <div class="toolbar-section">
+                    <span class="toolbar-section-label">Compile</span>
+                    <div class="toolbar-buttons">
+                        <label class="toolbar-checkbox">
+                            <input type="checkbox" id="autoCompile" checked>
+                            <span class="checkbox-label">Auto</span>
+                        </label>
+                        <button id="compileBtn" class="toolbar-btn primary" title="Compile shaders">
+                            <span class="btn-icon">⚡</span>
+                            <span class="btn-text">Compile</span>
+                        </button>
+                        <button id="resetBtn" class="toolbar-btn" title="Reset to defaults">
+                            <span class="btn-icon">🔄</span>
+                            <span class="btn-text">Reset</span>
+                        </button>
+                        <label class="toolbar-checkbox">
+                            <input type="checkbox" id="autosaveToggle" checked>
+                            <span class="checkbox-label">AutoSave</span>
+                        </label>
+                        <select id="autosaveInterval" class="toolbar-select" title="Autosave interval">
+                            <option value="0.5">30s</option>
+                            <option value="1" selected>1m</option>
+                            <option value="2">2m</option>
+                            <option value="5">5m</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- View controls -->
+                <div class="toolbar-section">
+                    <span class="toolbar-section-label">View</span>
+                    <div class="toolbar-buttons">
+                        <label class="toolbar-checkbox">
+                            <input type="checkbox" id="panZoomToggle">
+                            <span class="checkbox-label">Pan/Zoom</span>
+                        </label>
+                        <button id="resetViewBtn" class="toolbar-btn" title="Reset view to default">
+                            <span class="btn-icon">🎯</span>
+                            <span class="btn-text">Reset View</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Capture tools -->
+                <div class="toolbar-section">
+                    <span class="toolbar-section-label">Capture</span>
+                    <div class="toolbar-buttons">
+                        <button id="screenshotBtn" class="toolbar-btn" title="Take screenshot">
+                            <span class="btn-icon">📷</span>
+                            <span class="btn-text">Screenshot</span>
+                        </button>
+                        <button id="recordBtn" class="toolbar-btn" title="Record video">
+                            <span class="btn-icon">🎥</span>
+                            <span class="btn-text">Record</span>
+                        </button>
+                        <div class="record-controls" id="recordControls">
+                            <input type="number" id="recordDuration" value="5" min="1" max="60" step="1">
+                            <span>seconds</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="editor-panel">
+                <div class="tabs">
+                    <button class="tab-btn active" data-shader="fragment">Fragment Shader</button>
+                    <button class="tab-btn" data-shader="vertex">Vertex Shader</button>
+                </div>
+                <div id="fragmentEditor" class="editor"></div>
+                <div id="vertexEditor" class="editor" style="display: none;"></div>
+                <div class="error-console" id="errorConsole"></div>
+            </div>
+            
+            <div class="preview-panel">
+                <canvas id="glCanvas" width="512" height="512"></canvas>
+            </div>
+            
+            <div class="uniform-sidebar">
+                <div class="uniform-controls">
+                    <div class="uniform-header">
+                        <h3>Uniforms</h3>
+                    </div>
+                    
+                    <div class="uniform-list">
+                        <!-- Uniforms will be dynamically generated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.0/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.0/mode-glsl.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.0/theme-monokai.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.0/ext-language_tools.js"></script>
+    
+    <!-- Main Application -->
+    <script type="module" src="src/main.js"></script>
+</body>
+</html> 

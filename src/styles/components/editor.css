@@ -1,0 +1,284 @@
+/* Editor panel styles */
+.editor-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-primary);
+}
+
+.tabs {
+    background: var(--bg-secondary);
+    display: flex;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.tab-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    padding: var(--spacing-xl) var(--spacing-xxxl);
+    cursor: pointer;
+    font-size: var(--font-lg);
+    transition: all var(--transition-fast);
+    border-bottom: 2px solid transparent;
+}
+
+.tab-btn:hover {
+    background: var(--border-primary);
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-primary);
+    background: var(--border-primary);
+}
+
+.editor {
+    flex: 1;
+    position: relative;
+}
+
+.error-console {
+    background: #2d1b1b;
+    border-top: 1px solid var(--border-primary);
+    max-height: 150px;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: var(--font-md);
+    padding: var(--spacing-lg);
+    color: #ff6b6b;
+    display: none;
+}
+
+.error-console.show {
+    display: block;
+}
+
+/* ACE Editor Styling */
+.ace_editor {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-size: 14px !important;
+}
+
+/* GLSL Autocomplete and Documentation Styling */
+.ace-tooltip {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    max-width: 400px;
+    word-wrap: break-word;
+}
+
+.ace-tooltip .signature {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin-bottom: 6px;
+    padding: 4px 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+    border: 1px solid var(--border-secondary);
+}
+
+.ace-tooltip .description {
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.ace-tooltip .params {
+    margin-bottom: 8px;
+}
+
+.ace-tooltip .params strong {
+    color: var(--text-primary);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ace-tooltip .params ul {
+    margin: 4px 0 0 0;
+    padding-left: 16px;
+    list-style-type: disc;
+}
+
+.ace-tooltip .params li {
+    margin: 2px 0;
+    font-size: 11px;
+}
+
+.ace-tooltip .params code {
+    background: var(--bg-primary);
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: var(--accent-secondary);
+}
+
+.ace-tooltip .returns {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.ace-tooltip .returns strong {
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ace-tooltip .name {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin-bottom: 4px;
+}
+
+.ace-tooltip .scope {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 4px;
+}
+
+/* User-defined symbol styling */
+.ace-tooltip.user-defined {
+    border-left: 3px solid var(--accent-secondary);
+}
+
+.ace-tooltip.user-defined .name em {
+    color: var(--accent-secondary);
+    font-size: 10px;
+}
+
+.ace-tooltip .type,
+.ace-tooltip .data-type,
+.ace-tooltip .qualifier,
+.ace-tooltip .return-type,
+.ace-tooltip .array-size {
+    font-size: 11px;
+    margin: 2px 0;
+    color: var(--text-secondary);
+}
+
+.ace-tooltip .value {
+    font-size: 11px;
+    margin: 4px 0;
+}
+
+.ace-tooltip .value code {
+    background: var(--bg-primary);
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: var(--accent-primary);
+}
+
+/* Hover tooltip styling */
+.glsl-hover-tooltip {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    max-width: 300px;
+    word-wrap: break-word;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: tooltipFadeIn 0.2s ease-out;
+}
+
+.glsl-hover-content .signature {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin-bottom: 6px;
+    padding: 4px 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+}
+
+.glsl-hover-content .name {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin-bottom: 4px;
+}
+
+.glsl-hover-content .description {
+    color: var(--text-primary);
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Autocomplete popup customization */
+.ace_autocomplete {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.ace_autocomplete .ace_marker-layer .ace_active-line {
+    background: var(--border-primary) !important;
+}
+
+.ace_autocomplete .ace_line {
+    color: var(--text-primary) !important;
+}
+
+.ace_autocomplete .ace_completion-highlight {
+    color: var(--accent-primary) !important;
+    font-weight: bold !important;
+}
+
+.ace_autocomplete .ace_completion-meta {
+    color: var(--text-secondary) !important;
+    font-style: italic !important;
+}
+
+/* Specific meta type styling */
+.ace_autocomplete .ace_line[data-meta*="function"] {
+    color: #FFA07A !important; /* Light salmon for functions */
+}
+
+.ace_autocomplete .ace_line[data-meta*="type"] {
+    color: #98D8C8 !important; /* Mint green for types */
+}
+
+.ace_autocomplete .ace_line[data-meta*="variable"] {
+    color: #F7DC6F !important; /* Light yellow for variables */
+}
+
+.ace_autocomplete .ace_line[data-meta*="user-"] {
+    color: #BB8FCE !important; /* Light purple for user-defined */
+}
+
+.ace_autocomplete .ace_line[data-meta*="keyword"] {
+    color: #85C1E9 !important; /* Light blue for keywords */
+}
+
+/* Responsive editor */
+@media (max-width: 768px) {
+    .editor-panel {
+        flex: 1;
+        border-right: none;
+        border-bottom: 1px solid var(--border-primary);
+    }
+} 

@@ -1,0 +1,13 @@
+/* Main stylesheet - imports all component styles */
+
+/* Base styles */
+@import './base/variables.css';
+@import './base/reset.css';
+@import './base/layout.css';
+
+/* Component styles */
+@import './components/controls.css';
+@import './components/editor.css';
+@import './components/preview.css';
+@import './components/uniforms.css';
+@import './components/examples.css'; 
