@@ -13,8 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Make it globally accessible for debugging
         window.shaderEditor = shaderEditor;
-        
-        console.log('Shader Editor initialized successfully');
     } catch (error) {
         console.error('Failed to initialize Shader Editor:', error);
         

@@ -28,8 +28,6 @@ export class GLSLLanguageService {
         
         // Set up live symbol extraction
         this.setupSymbolExtraction(editor);
-        
-        console.log(`GLSL Language Service initialized for ${shaderType} shader`);
     }
 
     /**

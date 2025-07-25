@@ -59,7 +59,6 @@ export class CodeEditor {
         languageService.initialize(editor, type);
         this.languageServices.set(type, languageService);
         
-        console.log(`GLSL autocomplete enabled for ${type} shader editor`);
     }
 
     /**
@@ -85,18 +84,15 @@ export class CodeEditor {
      */
     async loadDefaultShaders() {
         try {
-            console.log('Loading default shaders from files...');
             const [vertexShader, fragmentShader] = await Promise.all([
                 this.loadShaderFile(SHADER_PATHS.glsl.defaultVertex),
                 this.loadShaderFile(SHADER_PATHS.glsl.defaultFragment)
             ]);
 
-            console.log('Successfully loaded default shaders from files');
             this.setShaderContent('vertex', vertexShader);
             this.setShaderContent('fragment', fragmentShader);
         } catch (error) {
             console.error('Failed to load default shaders from files:', error);
-            console.log('Falling back to hardcoded defaults');
             // Fallback to hardcoded defaults
             this.loadHardcodedDefaults();
         }

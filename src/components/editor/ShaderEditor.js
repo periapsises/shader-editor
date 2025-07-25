@@ -49,8 +49,6 @@ export class ShaderEditor {
             
             // Initialize WebGL renderer
             this.components.renderer = new WebGLRenderer('glCanvas');
-            
-            console.log('All components initialized successfully');
         } catch (error) {
             console.error('Failed to initialize components:', error);
             this.components.errorConsole?.showError('Failed to initialize shader editor: ' + error.message);
@@ -305,7 +303,6 @@ export class ShaderEditor {
      */
     onAutoCompileChanged(enabled) {
         // Update editor debounce behavior if needed
-        console.log('Auto-compile changed:', enabled);
     }
 
     /**
@@ -313,7 +310,6 @@ export class ShaderEditor {
      * @param {Object} detail - Shader change details
      */
     onShaderChanged(detail) {
-        console.log('Shader changed:', detail.type);
         
         // Auto-compile when shader content changes
         if (this.components.controls.isAutoCompileEnabled()) {
@@ -405,7 +401,6 @@ export class ShaderEditor {
     onAnimationReset(detail) {
         // Animation reset is handled by the WebGLRenderer
         // This is just for any additional UI updates if needed
-        console.log('Animation reset');
     }
 
     /**
@@ -438,7 +433,6 @@ export class ShaderEditor {
         } else {
             this.stopAutosave();
         }
-        console.log(`Autosave ${enabled ? 'enabled' : 'disabled'}`);
     }
 
     /**
@@ -451,7 +445,6 @@ export class ShaderEditor {
             this.stopAutosave();
             this.startAutosave();
         }
-        console.log(`Autosave interval changed to ${intervalMinutes} minutes`);
     }
 
     /**
@@ -602,7 +595,6 @@ ${vertexShader}`;
                     await writable.write(shaderContent);
                     await writable.close();
                     
-                    console.log(`${saveType} shader code saved successfully`);
                     return;
                 } catch (error) {
                     if (error.name === 'AbortError') {
@@ -622,7 +614,6 @@ ${vertexShader}`;
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
             
-            console.log(`${saveType} shader code downloaded successfully`);
         } catch (error) {
             console.error('Failed to save shader code:', error);
             alert('Failed to save shader code: ' + error.message);
@@ -673,7 +664,6 @@ ${vertexShader}`;
                     await writable.write(dataStr);
                     await writable.close();
                     
-                    console.log('Project exported successfully');
                     return;
                 } catch (error) {
                     if (error.name === 'AbortError') {
@@ -693,7 +683,6 @@ ${vertexShader}`;
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
             
-            console.log('Project exported successfully');
         } catch (error) {
             console.error('Failed to export project:', error);
             alert('Failed to export project: ' + error.message);
@@ -760,7 +749,6 @@ ${vertexShader}`;
                 this.compileShaders();
             }, 100);
 
-            console.log('Project loaded successfully');
         } catch (error) {
             console.error('Failed to load project:', error);
             alert('Failed to load project: ' + error.message);
@@ -784,7 +772,6 @@ ${vertexShader}`;
                 this.compileShaders();
             }, 100);
             
-            console.log(`Loaded example shader: ${detail.name}`);
         } catch (error) {
             console.error('Failed to load example shader:', error);
             alert('Failed to load example shader: ' + error.message);
@@ -799,7 +786,6 @@ ${vertexShader}`;
         try {
             // Check if uniform already exists
             if (this.components.uniformManager.uniforms.has(uniformSpec.name)) {
-                console.log(`Uniform ${uniformSpec.name} already exists`);
                 return;
             }
 
@@ -830,7 +816,6 @@ ${vertexShader}`;
             // Notify about uniform change
             this.components.uniformManager.dispatchUniformsChanged();
 
-            console.log(`Created example uniform: ${uniformSpec.name}`);
         } catch (error) {
             console.error('Failed to create example uniform:', error);
         }
@@ -872,7 +857,6 @@ ${vertexShader}`;
             // Resize the renderer
             this.components.renderer.resize(width, height);
 
-            console.log(`Canvas resized to ${width}x${height}`);
         } catch (error) {
             console.error('Failed to resize canvas:', error);
             alert('Failed to resize canvas: ' + error.message);
@@ -894,7 +878,6 @@ ${vertexShader}`;
             link.click();
             document.body.removeChild(link);
             
-            console.log('Screenshot saved successfully');
         } catch (error) {
             console.error('Failed to take screenshot:', error);
             alert('Failed to take screenshot: ' + error.message);
@@ -935,7 +918,6 @@ ${vertexShader}`;
                 
                 URL.revokeObjectURL(url);
                 this.components.controls.setRecordingState(false);
-                console.log('Recording saved successfully');
             };
             
             this.mediaRecorder.start();
@@ -948,7 +930,6 @@ ${vertexShader}`;
                 }
             }, duration * 1000);
             
-            console.log(`Recording started for ${duration} seconds`);
         } catch (error) {
             console.error('Failed to start recording:', error);
             alert('Failed to start recording: ' + error.message);
@@ -963,7 +944,6 @@ ${vertexShader}`;
         try {
             if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
                 this.mediaRecorder.stop();
-                console.log('Recording stopped');
             }
         } catch (error) {
             console.error('Failed to stop recording:', error);
@@ -1011,7 +991,6 @@ ${vertexShader}`;
             this.performAutosave();
         }, intervalMs);
 
-        console.log(`Autosave started with ${this.settings.autosave.intervalMinutes} minute interval`);
     }
 
     /**
@@ -1061,7 +1040,6 @@ ${vertexShader}`;
                 this.showAutosaveNotification();
             }
 
-            console.log('Autosave completed at', new Date().toLocaleTimeString());
         } catch (error) {
             console.error('Autosave failed:', error);
         }
@@ -1136,7 +1114,6 @@ ${vertexShader}`;
             await this.importState(autosaveData.state);
             this.lastAutosaveHash = autosaveData.hash;
 
-            console.log('Restored from autosave:', new Date(autosaveData.timestamp).toLocaleString());
             return true;
         } catch (error) {
             console.error('Failed to restore from autosave:', error);
@@ -1151,7 +1128,6 @@ ${vertexShader}`;
         try {
             localStorage.removeItem(this.autosaveKey);
             this.lastAutosaveHash = null;
-            console.log('Autosave data cleared');
         } catch (error) {
             console.error('Error clearing autosave data:', error);
         }

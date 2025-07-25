@@ -216,8 +216,6 @@ export class ExampleBrowser {
 
             // Hide the modal
             this.hide();
-
-            console.log(`Loaded example: ${example.name}`);
         } catch (error) {
             console.error('Failed to load example:', error);
             alert(`Failed to load example: ${error.message}`);
