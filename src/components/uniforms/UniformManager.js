@@ -170,9 +170,10 @@ export class UniformManager {
      * @param {string} uniformName - The uniform name
      * @param {string} uniformType - The uniform type
      * @param {string} builtinType - The builtin type ('custom' if not builtin)
+     * @param {string} keyCode - The key code for keyState uniforms (optional)
      * @returns {boolean} True if successful, false otherwise
      */
-    confirmUniform(tempId, uniformName, uniformType, builtinType = 'custom') {
+    confirmUniform(tempId, uniformName, uniformType, builtinType = 'custom', keyCode = null) {
         // Validate uniform name
         if (!uniformName) {
             alert('Please enter a uniform name');
@@ -191,11 +192,18 @@ export class UniformManager {
 
         // Add uniform to collection
         const defaultValue = getDefaultValueForType(uniformType);
-        this.uniforms.set(uniformName, { 
+        const uniformData = { 
             type: uniformType, 
             value: defaultValue, 
             default: false 
-        });
+        };
+        
+        // Add key code for keyState uniforms
+        if (builtinType === 'keyState' && keyCode) {
+            uniformData.keyCode = keyCode;
+        }
+        
+        this.uniforms.set(uniformName, uniformData);
 
         // Set built-in association
         if (builtinType !== 'custom') {
@@ -255,9 +263,10 @@ export class UniformManager {
      * @param {string} newName - The new uniform name
      * @param {string} newType - The new uniform type
      * @param {string} builtinType - The builtin type
+     * @param {string} keyCode - The key code for keyState uniforms (optional)
      * @returns {boolean} True if successful, false otherwise
      */
-    confirmEditUniform(tempId, oldName, newName, newType, builtinType) {
+    confirmEditUniform(tempId, oldName, newName, newType, builtinType, keyCode = null) {
         // Validate new uniform name
         if (!newName) {
             alert('Please enter a uniform name');
@@ -294,11 +303,18 @@ export class UniformManager {
             newValue = getDefaultValueForType(newType);
         }
 
-        this.uniforms.set(newName, {
+        const newUniformData = {
             type: newType,
             value: newValue,
             default: oldUniform.default
-        });
+        };
+        
+        // Add key code for keyState uniforms
+        if (builtinType === 'keyState' && keyCode) {
+            newUniformData.keyCode = keyCode;
+        }
+        
+        this.uniforms.set(newName, newUniformData);
 
         // Update built-in association
         if (builtinType !== 'custom') {
@@ -612,12 +628,19 @@ export class UniformManager {
                 }
             }
             
-            uniformsArray.push({
+            const uniformExport = {
                 name: name,
                 type: uniform.type,
                 value: exportValue,
                 default: uniform.default
-            });
+            };
+            
+            // Include keyCode for keyState uniforms
+            if (uniform.keyCode) {
+                uniformExport.keyCode = uniform.keyCode;
+            }
+            
+            uniformsArray.push(uniformExport);
         }
 
         // Convert builtin associations to object
@@ -709,11 +732,18 @@ export class UniformManager {
                     }
                 }
                 
-                this.uniforms.set(uniformData.name, {
+                const importedUniform = {
                     type: uniformData.type,
                     value: importValue,
                     default: false
-                });
+                };
+                
+                // Restore keyCode for keyState uniforms
+                if (uniformData.keyCode) {
+                    importedUniform.keyCode = uniformData.keyCode;
+                }
+                
+                this.uniforms.set(uniformData.name, importedUniform);
 
                 this.uniformUI.createUniformUI(
                     uniformData.name,

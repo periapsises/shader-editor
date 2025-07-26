@@ -791,11 +791,18 @@ ${vertexShader}`;
 
             // Create the uniform
             const defaultValue = this.getDefaultValueForType(uniformSpec.type);
-            this.components.uniformManager.uniforms.set(uniformSpec.name, {
+            const uniformData = {
                 type: uniformSpec.type,
                 value: defaultValue,
                 default: false
-            });
+            };
+            
+            // Add keyCode for keyState uniforms
+            if (uniformSpec.builtin === 'keyState' && uniformSpec.keyCode) {
+                uniformData.keyCode = uniformSpec.keyCode;
+            }
+            
+            this.components.uniformManager.uniforms.set(uniformSpec.name, uniformData);
 
             // Set builtin association if specified
             if (uniformSpec.builtin) {

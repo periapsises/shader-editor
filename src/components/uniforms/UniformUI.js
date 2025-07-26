@@ -144,7 +144,17 @@ export class UniformUI {
         if (builtinType && builtinType !== 'time' && builtinType !== 'resolution') {
             const display = document.createElement('span');
             display.className = 'uniform-value readonly';
-            display.textContent = this.formatValueForDisplay(uniformType, defaultValue);
+            
+            // Special handling for key state uniforms
+            if (builtinType === 'keyState') {
+                const uniform = this.uniformManager.getUniform(uniformName);
+                const keyCode = uniform ? uniform.keyCode : null;
+                const keyLabel = keyCode ? this.getKeyDisplayName(keyCode) : 'No key';
+                display.textContent = `${this.formatValueForDisplay(uniformType, defaultValue)} (${keyLabel})`;
+            } else {
+                display.textContent = this.formatValueForDisplay(uniformType, defaultValue);
+            }
+            
             return display;
         }
         
@@ -847,6 +857,55 @@ export class UniformUI {
     }
 
     /**
+     * Get display name for a key code
+     * @param {string} keyCode - The key code (e.g., 'Space', 'Mouse0')
+     * @returns {string} User-friendly display name
+     */
+    getKeyDisplayName(keyCode) {
+        // Handle mouse buttons
+        if (keyCode.startsWith('Mouse')) {
+            const buttonNum = keyCode.replace('Mouse', '');
+            switch (buttonNum) {
+                case '0': return 'Left Mouse Button';
+                case '1': return 'Middle Mouse Button';
+                case '2': return 'Right Mouse Button';
+                default: return `Mouse Button ${buttonNum}`;
+            }
+        }
+        
+        // Handle common keyboard keys
+        const keyMappings = {
+            'Space': 'Spacebar',
+            'Enter': 'Enter',
+            'Escape': 'Escape',
+            'Tab': 'Tab',
+            'ShiftLeft': 'Left Shift',
+            'ShiftRight': 'Right Shift',
+            'ControlLeft': 'Left Ctrl',
+            'ControlRight': 'Right Ctrl',
+            'AltLeft': 'Left Alt',
+            'AltRight': 'Right Alt',
+            'ArrowUp': 'Up Arrow',
+            'ArrowDown': 'Down Arrow',
+            'ArrowLeft': 'Left Arrow',
+            'ArrowRight': 'Right Arrow'
+        };
+        
+        // Handle letter keys (KeyA -> A)
+        if (keyCode.startsWith('Key')) {
+            return keyCode.replace('Key', '');
+        }
+        
+        // Handle digit keys (Digit0 -> 0)
+        if (keyCode.startsWith('Digit')) {
+            return keyCode.replace('Digit', '');
+        }
+        
+        // Return mapped name or original code
+        return keyMappings[keyCode] || keyCode;
+    }
+
+    /**
      * Create uniform edit UI
      * @param {string} tempId - Temporary ID for the editing uniform
      * @param {string} existingName - Existing uniform name (for editing)
@@ -892,6 +951,112 @@ export class UniformUI {
             builtinSelect.appendChild(option);
         });
 
+        // Key recording for keyState builtin (initially hidden)
+        const keyRecordDiv = document.createElement('div');
+        keyRecordDiv.className = 'key-record-container';
+        keyRecordDiv.style.display = existingBuiltin === 'keyState' ? 'block' : 'none';
+        
+        const keyDisplay = document.createElement('div');
+        keyDisplay.className = 'key-display';
+        
+        const keyRecordBtn = document.createElement('button');
+        keyRecordBtn.className = 'key-record-btn';
+        keyRecordBtn.type = 'button';
+        
+        // State management for key recording
+        let recordedKeyCode = '';
+        let isRecording = false;
+        
+        // Set existing key if editing
+        const existingUniform = this.uniformManager.getUniform(existingName);
+        if (existingUniform && existingUniform.keyCode) {
+            recordedKeyCode = existingUniform.keyCode;
+        }
+        
+        const updateKeyDisplay = () => {
+            if (recordedKeyCode) {
+                const keyName = this.getKeyDisplayName(recordedKeyCode);
+                keyDisplay.textContent = `Selected: ${keyName}`;
+                keyRecordBtn.textContent = 'Change Key';
+            } else {
+                keyDisplay.textContent = 'No key selected';
+                keyRecordBtn.textContent = 'Record Key';
+            }
+        };
+        
+        const startRecording = () => {
+            if (isRecording) return;
+            
+            isRecording = true;
+            keyRecordBtn.textContent = 'Press any key or mouse button...';
+            keyRecordBtn.disabled = true;
+            keyDisplay.textContent = 'Listening for input...';
+            
+            // Key recording event handlers
+            const handleKeyDown = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                recordedKeyCode = e.code;
+                stopRecording();
+            };
+            
+            const handleMouseDown = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                recordedKeyCode = `Mouse${e.button}`;
+                stopRecording();
+            };
+            
+            const stopRecording = () => {
+                if (!isRecording) return;
+                
+                isRecording = false;
+                keyRecordBtn.disabled = false;
+                
+                // Remove event listeners
+                document.removeEventListener('keydown', handleKeyDown, true);
+                document.removeEventListener('mousedown', handleMouseDown, true);
+                
+                updateKeyDisplay();
+            };
+            
+            // Add event listeners with capture=true to intercept before other handlers
+            document.addEventListener('keydown', handleKeyDown, true);
+            document.addEventListener('mousedown', handleMouseDown, true);
+            
+            // Auto-cancel after 10 seconds
+            setTimeout(() => {
+                if (isRecording) {
+                    stopRecording();
+                }
+            }, 10000);
+        };
+        
+        keyRecordBtn.addEventListener('click', startRecording);
+        
+        updateKeyDisplay();
+        
+        keyRecordDiv.appendChild(keyDisplay);
+        keyRecordDiv.appendChild(keyRecordBtn);
+
+        // Show/hide key recording based on builtin type
+        builtinSelect.addEventListener('change', () => {
+            if (builtinSelect.value === 'keyState') {
+                keyRecordDiv.style.display = 'block';
+                typeSelect.value = 'bool'; // Force bool type for key states
+                typeSelect.disabled = true;
+            } else {
+                keyRecordDiv.style.display = 'none';
+                typeSelect.disabled = false;
+            }
+        });
+
+        // Force bool type and disable type selection for keyState
+        if (existingBuiltin === 'keyState') {
+            typeSelect.value = 'bool';
+            typeSelect.disabled = true;
+        }
+
         // Confirm button
         const confirmBtn = document.createElement('button');
         confirmBtn.className = 'confirm-btn';
@@ -910,10 +1075,18 @@ export class UniformUI {
             const type = typeSelect.value;
             const builtin = builtinSelect.value;
             
+            // For keyState uniforms, validate that a key is recorded
+            if (builtin === 'keyState' && !recordedKeyCode) {
+                alert('Please record a key for the key state uniform');
+                return;
+            }
+            
+            const keyCode = builtin === 'keyState' ? recordedKeyCode : null;
+            
             if (existingName) {
-                this.uniformManager.confirmEditUniform(tempId, existingName, name, type, builtin);
+                this.uniformManager.confirmEditUniform(tempId, existingName, name, type, builtin, keyCode);
             } else {
-                this.uniformManager.confirmUniform(tempId, name, type, builtin);
+                this.uniformManager.confirmUniform(tempId, name, type, builtin, keyCode);
             }
         };
 
@@ -939,6 +1112,7 @@ export class UniformUI {
         configDiv.appendChild(cancelBtn);
 
         uniformDiv.appendChild(configDiv);
+        uniformDiv.appendChild(keyRecordDiv);
         
         // Insert before the placeholder button instead of appending to the end
         const placeholder = document.getElementById('uniformPlaceholder');

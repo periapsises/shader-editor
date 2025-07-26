@@ -40,6 +40,17 @@ export class ExampleBrowser {
                 requiresUniforms: [
                     { name: 'u_lastFrame', type: 'texture', builtin: 'lastFrame' }
                 ]
+            },
+            {
+                name: 'Key State Interaction',
+                description: 'Interactive visual effects controlled by keyboard and mouse input',
+                filename: 'key_state_example.frag',
+                category: 'Interactive',
+                requiresUniforms: [
+                    { name: 'u_spacePressed', type: 'bool', builtin: 'keyState', keyCode: 'Space' },
+                    { name: 'u_leftMouse', type: 'bool', builtin: 'keyState', keyCode: 'Mouse0' },
+                    { name: 'u_rightMouse', type: 'bool', builtin: 'keyState', keyCode: 'Mouse2' }
+                ]
             }
         ];
         this.init();

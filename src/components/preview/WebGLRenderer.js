@@ -13,6 +13,8 @@ export class WebGLRenderer {
         this.positionLocation = null;
         this.uniformLocations = new Map();
         this.mousePos = { x: 0, y: 0 };
+        this.keyStates = new Map(); // Track key states by key code
+        this.mouseButtonStates = new Map(); // Track mouse button states
         this.currentTime = 0;
         this.startTime = Date.now();
         this.isPlaying = true;
@@ -250,6 +252,30 @@ export class WebGLRenderer {
             this.onShaderChanged(e.detail);
         });
 
+        // Listen for keyboard events for key state tracking
+        document.addEventListener('keydown', (e) => {
+            this.keyStates.set(e.code, true);
+        });
+
+        document.addEventListener('keyup', (e) => {
+            this.keyStates.set(e.code, false);
+        });
+
+        // Listen for mouse button events for button state tracking
+        document.addEventListener('mousedown', (e) => {
+            this.mouseButtonStates.set(`Mouse${e.button}`, true);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            this.mouseButtonStates.set(`Mouse${e.button}`, false);
+        });
+
+        // Handle window blur to reset key states (prevents stuck keys/buttons)
+        window.addEventListener('blur', () => {
+            this.keyStates.clear();
+            this.mouseButtonStates.clear();
+        });
+
         // Listen for uniform updates
         document.addEventListener('uniformUpdated', (e) => {
             this.onUniformUpdated(e.detail);
@@ -435,6 +461,17 @@ export class WebGLRenderer {
                     break;
                 case 'mouse':
                     newValue = [this.mousePos.x, this.mousePos.y];
+                    break;
+                case 'keyState':
+                    // For key state uniforms, get the key code from the uniform's metadata
+                    // and return the boolean state of that key or mouse button
+                    const keyCode = uniform.keyCode;
+                    if (keyCode) {
+                        // Check both keyboard keys and mouse buttons
+                        newValue = this.keyStates.get(keyCode) || this.mouseButtonStates.get(keyCode) || false;
+                    } else {
+                        newValue = false;
+                    }
                     break;
                 case 'lastFrame':
                     // Create texture data object for the last frame
