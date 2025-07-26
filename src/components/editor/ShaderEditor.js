@@ -897,6 +897,9 @@ ${vertexShader}`;
      */
     startRecording(duration) {
         try {
+            // Reset animation time to start recording from the beginning
+            this.components.renderer.resetAnimation();
+            
             const canvas = this.components.renderer.canvas;
             const stream = canvas.captureStream(30); // 30 FPS
             
