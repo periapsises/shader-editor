@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS, CONSTANTS } from '../../config/settings.js';
+import { debounce } from '../../utils/debounce.js';
 
 /**
  * UniformUI component for creating and managing uniform UI elements
@@ -7,6 +8,14 @@ export class UniformUI {
     constructor(uniformManager) {
         this.uniformManager = uniformManager;
         this.uniformList = document.querySelector('.uniform-list');
+        
+        // Debounced function for resolution changes to prevent excessive updates
+        this.debouncedResolutionChange = debounce((width, height) => {
+            const event = new CustomEvent('resolutionChanged', {
+                detail: { width, height }
+            });
+            document.dispatchEvent(event);
+        }, 300); // 300ms delay
     }
 
     /**
@@ -305,6 +314,11 @@ export class UniformUI {
             input.addEventListener('input', () => {
                 const values = inputs.map(inp => isResolution ? parseInt(inp.value) : parseFloat(inp.value));
                 this.uniformManager.updateUniformValue(uniformName, values);
+                
+                // For resolution uniforms, also apply to canvas with debouncing
+                if (isResolution && values.length >= 2) {
+                    this.debouncedResolutionChange(Math.round(values[0]), Math.round(values[1]));
+                }
             });
 
             inputs.push(input);
@@ -696,22 +710,6 @@ export class UniformUI {
         const buttonGroup = document.createElement('div');
         buttonGroup.className = 'resolution-button-group';
 
-        const applyBtn = document.createElement('button');
-        applyBtn.textContent = '📐';
-        applyBtn.title = 'Apply resolution to canvas';
-        applyBtn.addEventListener('click', () => {
-            const uniform = this.uniformManager.uniforms.get(uniformName);
-            if (uniform && uniform.value && Array.isArray(uniform.value) && uniform.value.length >= 2) {
-                const event = new CustomEvent('resolutionChanged', {
-                    detail: { 
-                        width: Math.round(uniform.value[0]),
-                        height: Math.round(uniform.value[1])
-                    }
-                });
-                document.dispatchEvent(event);
-            }
-        });
-
         // Common resolution presets
         const presetContainer = document.createElement('div');
         presetContainer.className = 'resolution-presets';
@@ -745,7 +743,6 @@ export class UniformUI {
             presetContainer.appendChild(presetBtn);
         });
 
-        buttonGroup.appendChild(applyBtn);
         buttonGroup.appendChild(presetContainer);
 
         return buttonGroup;
