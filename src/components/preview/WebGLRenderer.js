@@ -76,9 +76,33 @@ export class WebGLRenderer {
                 this.lastMousePos = { x: e.clientX, y: e.clientY };
             } else {
                 // Regular mouse tracking for shaders
-                // Since we're using CSS transforms, mouse coordinates stay in original shader space
-                this.mousePos.x = (e.clientX - rect.left) / rect.width;
-                this.mousePos.y = 1.0 - (e.clientY - rect.top) / rect.height;
+                // Calculate the actual visible area of the canvas considering object-fit: contain
+                const canvasAspect = this.canvas.width / this.canvas.height;
+                const displayAspect = rect.width / rect.height;
+                
+                let visibleWidth, visibleHeight, offsetX, offsetY;
+                
+                if (canvasAspect > displayAspect) {
+                    // Canvas is wider - will have top/bottom letterboxing
+                    visibleWidth = rect.width;
+                    visibleHeight = rect.width / canvasAspect;
+                    offsetX = 0;
+                    offsetY = (rect.height - visibleHeight) / 2;
+                } else {
+                    // Canvas is taller - will have left/right pillarboxing
+                    visibleWidth = rect.height * canvasAspect;
+                    visibleHeight = rect.height;
+                    offsetX = (rect.width - visibleWidth) / 2;
+                    offsetY = 0;
+                }
+                
+                // Calculate mouse position relative to the visible canvas area only
+                const mouseX = e.clientX - rect.left - offsetX;
+                const mouseY = e.clientY - rect.top - offsetY;
+                
+                // Normalize to 0-1 range, but clamp to ensure we stay within bounds
+                this.mousePos.x = Math.max(0, Math.min(1, mouseX / visibleWidth));
+                this.mousePos.y = Math.max(0, Math.min(1, 1.0 - (mouseY / visibleHeight)));
             }
         });
 
