@@ -5,15 +5,96 @@
     height: 100vh;
 }
 
-.main-content {
+/* Dockable Panel System */
+.workspace {
     display: flex;
     flex: 1;
     overflow: hidden;
+    position: relative;
 }
+
+.panel-area {
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    min-height: 200px;
+    position: relative;
+}
+
+.left-area {
+    flex: 1;
+}
+
+.center-area {
+    flex: 2;
+}
+
+.right-area {
+    flex: 1;
+}
+
+/* Panel Areas */
+.editor-panel,
+.preview-panel,
+.uniform-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+/* Splitters */
+.splitter {
+    background: var(--border-primary);
+    transition: background-color var(--transition-fast);
+    position: relative;
+    z-index: 100;
+}
+
+.splitter:hover {
+    background: var(--accent-primary);
+}
+
+.splitter.horizontal-splitter {
+    width: 4px;
+    cursor: col-resize;
+    min-width: 4px;
+}
+
+.splitter.vertical-splitter {
+    height: 4px;
+    cursor: row-resize;
+    min-height: 4px;
+}
+
+.splitter.dragging {
+    background: var(--accent-primary);
+    box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .main-content {
+    .workspace {
         flex-direction: column;
+    }
+    
+    .panel-area {
+        min-width: unset;
+        max-width: unset;
+    }
+    
+    .left-area, .center-area, .right-area {
+        flex: 1;
+    }
+    
+    .splitter.horizontal-splitter {
+        width: 100%;
+        height: 4px;
+        cursor: row-resize;
     }
 } 

@@ -3,6 +3,7 @@ import { TabManager } from '../ui/TabManager.js';
 import { Controls } from '../ui/Controls.js';
 import { ErrorConsole } from '../ui/ErrorConsole.js';
 import { ExampleBrowser } from '../ui/ExampleBrowser.js';
+import { PanelManager } from '../ui/PanelManager.js';
 import { WebGLRenderer } from '../preview/WebGLRenderer.js';
 import { UniformManager } from '../uniforms/UniformManager.js';
 import { DEFAULT_SETTINGS } from '../../config/settings.js';
@@ -42,6 +43,7 @@ export class ShaderEditor {
             this.components.tabManager = new TabManager();
             this.components.controls = new Controls();
             this.components.exampleBrowser = new ExampleBrowser();
+            this.components.panelManager = new PanelManager();
             
             // Initialize editor components
             this.components.codeEditor = new CodeEditor();
@@ -176,8 +178,7 @@ export class ShaderEditor {
             this.onAutosaveIntervalChanged(e.detail.intervalMinutes);
         });
 
-        // Setup canvas filtering controls
-        this.setupCanvasFilteringControls();
+
     }
 
     /**
@@ -201,6 +202,8 @@ export class ShaderEditor {
             this.compileShaders();
             // Ensure UI button states are synchronized with renderer state
             this.syncUIWithRendererState();
+            // Setup canvas filtering controls now that renderer is ready
+            this.setupCanvasFilteringControls();
         }, 100);
     }
 
@@ -425,6 +428,8 @@ export class ShaderEditor {
         }
     }
 
+
+
     /**
      * Handle autosave toggle event
      * @param {boolean} enabled - Whether autosave is enabled
@@ -497,6 +502,14 @@ export class ShaderEditor {
      */
     getUniformManager() {
         return this.components.uniformManager;
+    }
+
+    /**
+     * Get panel manager
+     * @returns {PanelManager} The panel manager instance
+     */
+    getPanelManager() {
+        return this.components.panelManager;
     }
 
     /**
@@ -1175,9 +1188,17 @@ ${vertexShader}`;
                 document.dispatchEvent(event);
             });
 
-            // Set initial state based on renderer
-            const currentMode = this.components.renderer.getCanvasFiltering();
-            filterSelect.value = currentMode;
+            // Set initial state based on renderer (if available)
+            if (this.components.renderer && typeof this.components.renderer.getCanvasFiltering === 'function') {
+                try {
+                    const currentMode = this.components.renderer.getCanvasFiltering();
+                    filterSelect.value = currentMode;
+                } catch (error) {
+                    console.warn('Could not get canvas filtering mode:', error);
+                    // Use default value
+                    filterSelect.value = 'nearest';
+                }
+            }
         }
     }
 

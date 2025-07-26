@@ -1,13 +1,9 @@
-/* Uniform sidebar styles */
-.uniform-sidebar {
-    width: var(--sidebar-width);
-    min-width: var(--sidebar-min-width);
-    max-width: var(--sidebar-max-width);
-    background: #252525;
-    border-left: 1px solid var(--border-primary);
+/* Uniform panel styles */
+.uniform-panel {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    flex: 1;
 }
 
 

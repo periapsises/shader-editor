@@ -33,146 +33,197 @@
                 <h1>Live GLSL Shader Editor</h1>
             </div>
             
-            <div class="toolbar-sections">
-                <!-- File operations -->
-                <div class="toolbar-section">
-                    <span class="toolbar-section-label">File</span>
-                    <div class="toolbar-buttons">
-                        <div class="toolbar-btn-group">
-                            <button id="saveBtn" class="toolbar-btn" title="Save shader code">
-                                <span class="btn-icon">💾</span>
-                                <span class="btn-text">Save</span>
+            <!-- Primary Actions - Always Visible -->
+            <div class="toolbar-primary">
+                <label class="toolbar-checkbox">
+                    <input type="checkbox" id="autoCompile" checked>
+                    <span class="checkbox-label">Auto</span>
+                </label>
+                <button id="compileBtn" class="toolbar-btn primary" title="Compile shaders">
+                    <span class="btn-icon">⚡</span>
+                    <span class="btn-text">Compile</span>
+                </button>
+                <button id="resetBtn" class="toolbar-btn" title="Reset to defaults">
+                    <span class="btn-icon">🔄</span>
+                    <span class="btn-text">Reset</span>
+                </button>
+            </div>
+
+            <!-- View Controls - Always Visible -->
+            <div class="toolbar-view">
+                <div class="fps-counter" id="fpsCounter" title="Frames per second">
+                    <span class="fps-label">FPS:</span>
+                    <span class="fps-value" id="fpsValue">--</span>
+                </div>
+                <label class="toolbar-checkbox">
+                    <input type="checkbox" id="panZoomToggle">
+                    <span class="checkbox-label">Pan/Zoom</span>
+                </label>
+                <button id="resetViewBtn" class="toolbar-btn" title="Reset view to default">
+                    <span class="btn-icon">🎯</span>
+                    <span class="btn-text">Reset View</span>
+                </button>
+            </div>
+
+            <!-- Secondary Actions - Menu System -->
+            <div class="toolbar-menus">
+                <!-- File Menu -->
+                <div class="toolbar-menu">
+                    <button class="toolbar-menu-btn" id="fileMenuBtn" title="File operations">
+                        <span class="btn-icon">📁</span>
+                        <span class="btn-text">File</span>
+                        <span class="menu-arrow">▼</span>
+                    </button>
+                    <div class="toolbar-menu-panel" id="fileMenuPanel">
+                        <div class="menu-section">
+                            <h4>Save</h4>
+                            <button id="saveBtn" class="menu-item" title="Save shader code">
+                                <span class="menu-icon">💾</span>
+                                <span class="menu-text">Save Shaders</span>
                             </button>
-                            <button id="saveDropdownBtn" class="toolbar-btn dropdown-toggle" title="Save options">
-                                <span class="btn-icon">▼</span>
-                            </button>
-                            <div id="saveDropdown" class="dropdown-menu">
-                                <button class="dropdown-item" data-save-type="combined">Both Shaders</button>
-                                <button class="dropdown-item" data-save-type="fragment">Fragment Only</button>
-                                <button class="dropdown-item" data-save-type="vertex">Vertex Only</button>
+                            <div class="menu-submenu">
+                                <button class="menu-item-small" data-save-type="combined">Both Shaders</button>
+                                <button class="menu-item-small" data-save-type="fragment">Fragment Only</button>
+                                <button class="menu-item-small" data-save-type="vertex">Vertex Only</button>
                             </div>
                         </div>
-                        <button id="examplesBtn" class="toolbar-btn" title="Browse example shaders">
-                            <span class="btn-icon">📚</span>
-                            <span class="btn-text">Examples</span>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Project operations -->
-                <div class="toolbar-section">
-                    <span class="toolbar-section-label">Project</span>
-                    <div class="toolbar-buttons">
-                        <button id="exportBtn" class="toolbar-btn" title="Export project">
-                            <span class="btn-icon">📦</span>
-                            <span class="btn-text">Export</span>
-                        </button>
-                        <button id="loadBtn" class="toolbar-btn" title="Load project">
-                            <span class="btn-icon">📁</span>
-                            <span class="btn-text">Load</span>
-                        </button>
-                        <input type="file" id="loadInput" accept=".json" style="display: none;">
-                    </div>
-                </div>
-                
-                <!-- Compilation controls -->
-                <div class="toolbar-section">
-                    <span class="toolbar-section-label">Compile</span>
-                    <div class="toolbar-buttons">
-                        <label class="toolbar-checkbox">
-                            <input type="checkbox" id="autoCompile" checked>
-                            <span class="checkbox-label">Auto</span>
-                        </label>
-                        <button id="compileBtn" class="toolbar-btn primary" title="Compile shaders">
-                            <span class="btn-icon">⚡</span>
-                            <span class="btn-text">Compile</span>
-                        </button>
-                        <button id="resetBtn" class="toolbar-btn" title="Reset to defaults">
-                            <span class="btn-icon">🔄</span>
-                            <span class="btn-text">Reset</span>
-                        </button>
-                        <label class="toolbar-checkbox">
-                            <input type="checkbox" id="autosaveToggle" checked>
-                            <span class="checkbox-label">AutoSave</span>
-                        </label>
-                        <select id="autosaveInterval" class="toolbar-select" title="Autosave interval">
-                            <option value="0.5">30s</option>
-                            <option value="1" selected>1m</option>
-                            <option value="2">2m</option>
-                            <option value="5">5m</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- View controls -->
-                <div class="toolbar-section">
-                    <span class="toolbar-section-label">View</span>
-                    <div class="toolbar-buttons">
-                        <label class="toolbar-checkbox">
-                            <input type="checkbox" id="panZoomToggle">
-                            <span class="checkbox-label">Pan/Zoom</span>
-                        </label>
-                        <div class="toolbar-dropdown">
-                            <select id="canvasFilterSelect" class="toolbar-select" title="Canvas filtering mode">
-                                <option value="nearest" selected>Pixelated</option>
-                                <option value="linear">Smooth</option>
-                            </select>
+                        <div class="menu-section">
+                            <h4>Project</h4>
+                            <button id="exportBtn" class="menu-item" title="Export project">
+                                <span class="menu-icon">📦</span>
+                                <span class="menu-text">Export Project</span>
+                            </button>
+                            <button id="loadBtn" class="menu-item" title="Load project">
+                                <span class="menu-icon">📂</span>
+                                <span class="menu-text">Load Project</span>
+                            </button>
                         </div>
-                        <button id="resetViewBtn" class="toolbar-btn" title="Reset view to default">
-                            <span class="btn-icon">🎯</span>
-                            <span class="btn-text">Reset View</span>
-                        </button>
-                        <div class="fps-counter" id="fpsCounter" title="Frames per second">
-                            <span class="fps-label">FPS:</span>
-                            <span class="fps-value" id="fpsValue">--</span>
+                        <div class="menu-section">
+                            <h4>Examples</h4>
+                            <button id="examplesBtn" class="menu-item" title="Browse example shaders">
+                                <span class="menu-icon">📚</span>
+                                <span class="menu-text">Browse Examples</span>
+                            </button>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Capture tools -->
-                <div class="toolbar-section">
-                    <span class="toolbar-section-label">Capture</span>
-                    <div class="toolbar-buttons">
-                        <button id="screenshotBtn" class="toolbar-btn" title="Take screenshot">
-                            <span class="btn-icon">📷</span>
-                            <span class="btn-text">Screenshot</span>
-                        </button>
-                        <button id="recordBtn" class="toolbar-btn" title="Record video">
-                            <span class="btn-icon">🎥</span>
-                            <span class="btn-text">Record</span>
-                        </button>
-                        <div class="record-controls" id="recordControls">
-                            <input type="number" id="recordDuration" value="5" min="1" max="60" step="1">
-                            <span>seconds</span>
+
+                <!-- Tools Menu -->
+                <div class="toolbar-menu">
+                    <button class="toolbar-menu-btn" id="toolsMenuBtn" title="Tools and capture">
+                        <span class="btn-icon">🛠️</span>
+                        <span class="btn-text">Tools</span>
+                        <span class="menu-arrow">▼</span>
+                    </button>
+                    <div class="toolbar-menu-panel" id="toolsMenuPanel">
+                        <div class="menu-section">
+                            <h4>Capture</h4>
+                            <button id="screenshotBtn" class="menu-item" title="Take screenshot">
+                                <span class="menu-icon">📷</span>
+                                <span class="menu-text">Screenshot</span>
+                            </button>
+                            <button id="recordBtn" class="menu-item" title="Record video">
+                                <span class="menu-icon">🎥</span>
+                                <span class="menu-text">Record Video</span>
+                            </button>
+                            <div class="record-controls" id="recordControls">
+                                <label>Duration:</label>
+                                <input type="number" id="recordDuration" value="5" min="1" max="60" step="1">
+                                <span>seconds</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Settings Menu -->
+                <div class="toolbar-menu">
+                    <button class="toolbar-menu-btn" id="settingsMenuBtn" title="Settings and preferences">
+                        <span class="btn-icon">⚙️</span>
+                        <span class="btn-text">Settings</span>
+                        <span class="menu-arrow">▼</span>
+                    </button>
+                    <div class="toolbar-menu-panel" id="settingsMenuPanel">
+                        <div class="menu-section">
+                            <h4>Canvas</h4>
+                            <div class="menu-control">
+                                <label>Filtering:</label>
+                                <select id="canvasFilterSelect" class="menu-select" title="Canvas filtering mode">
+                                    <option value="nearest" selected>Pixelated</option>
+                                    <option value="linear">Smooth</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="menu-section">
+                            <h4>Autosave</h4>
+                            <div class="menu-control">
+                                <label class="menu-checkbox">
+                                    <input type="checkbox" id="autosaveToggle" checked>
+                                    <span>Enable Autosave</span>
+                                </label>
+                                <div class="menu-control">
+                                    <label>Interval:</label>
+                                    <select id="autosaveInterval" class="menu-select" title="Autosave interval">
+                                        <option value="0.5">30s</option>
+                                        <option value="1" selected>1m</option>
+                                        <option value="2">2m</option>
+                                        <option value="5">5m</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden elements -->
+            <input type="file" id="loadInput" accept=".json" style="display: none;">
+            <div id="saveDropdown" class="dropdown-menu" style="display: none;">
+                <button class="dropdown-item" data-save-type="combined">Both Shaders</button>
+                <button class="dropdown-item" data-save-type="fragment">Fragment Only</button>
+                <button class="dropdown-item" data-save-type="vertex">Vertex Only</button>
             </div>
         </div>
         
-        <div class="main-content">
-            <div class="editor-panel">
-                <div class="tabs">
-                    <button class="tab-btn active" data-shader="fragment">Fragment Shader</button>
-                    <button class="tab-btn" data-shader="vertex">Vertex Shader</button>
-                </div>
-                <div id="fragmentEditor" class="editor"></div>
-                <div id="vertexEditor" class="editor" style="display: none;"></div>
-                <div class="error-console" id="errorConsole"></div>
-            </div>
-            
-            <div class="preview-panel">
-                <canvas id="glCanvas" width="512" height="512"></canvas>
-            </div>
-            
-            <div class="uniform-sidebar">
-                <div class="uniform-controls">
-                    <div class="uniform-header">
-                        <h3>Uniforms</h3>
+        <!-- Resizable Panel System -->
+        <div class="workspace" id="workspace">
+            <!-- Left Panel Area -->
+            <div class="panel-area left-area" id="leftArea">
+                <div class="editor-panel">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-shader="fragment">Fragment Shader</button>
+                        <button class="tab-btn" data-shader="vertex">Vertex Shader</button>
                     </div>
-                    
-                    <div class="uniform-list">
-                        <!-- Uniforms will be dynamically generated here -->
+                    <div id="fragmentEditor" class="editor"></div>
+                    <div id="vertexEditor" class="editor" style="display: none;"></div>
+                    <div class="error-console" id="errorConsole"></div>
+                </div>
+            </div>
+            
+            <!-- Horizontal Splitter -->
+            <div class="splitter horizontal-splitter" id="leftSplitter" data-direction="horizontal"></div>
+            
+            <!-- Center Panel Area -->
+            <div class="panel-area center-area" id="centerArea">
+                <div class="preview-panel">
+                    <canvas id="glCanvas" width="512" height="512"></canvas>
+                </div>
+            </div>
+            
+            <!-- Horizontal Splitter -->
+            <div class="splitter horizontal-splitter" id="rightSplitter" data-direction="horizontal"></div>
+            
+            <!-- Right Panel Area -->
+            <div class="panel-area right-area" id="rightArea">
+                <div class="uniform-panel">
+                    <div class="uniform-controls">
+                        <div class="uniform-header">
+                            <h3>Uniforms</h3>
+                        </div>
+                        
+                        <div class="uniform-list">
+                            <!-- Uniforms will be dynamically generated here -->
+                        </div>
                     </div>
                 </div>
             </div>
