@@ -41,6 +41,13 @@ export class WebGLRenderer {
         // Canvas filtering mode
         this.canvasFiltering = 'nearest'; // 'nearest' or 'linear'
         
+        // FPS tracking
+        this.frameTimes = [];
+        this.maxFrameSamples = 60; // Track last 60 frames
+        this.lastFrameTime = 0;
+        this.fpsUpdateInterval = 500; // Update FPS display every 500ms
+        this.lastFpsUpdate = 0;
+        
         this.init();
     }
 
@@ -411,10 +418,15 @@ export class WebGLRenderer {
      * Main render function
      */
     render() {
+        const currentFrameTime = performance.now();
+        
         if (!this.gl || !this.program) {
             this.animationId = requestAnimationFrame(() => this.render());
             return;
         }
+
+        // Update FPS tracking
+        this.updateFPS(currentFrameTime);
 
         // Update time
         if (this.isPlaying) {
@@ -919,6 +931,67 @@ export class WebGLRenderer {
      */
     getCanvasFiltering() {
         return this.canvasFiltering;
+    }
+
+    /**
+     * Update FPS tracking and display
+     * @param {number} currentTime - Current timestamp from performance.now()
+     */
+    updateFPS(currentTime) {
+        // Calculate frame time
+        if (this.lastFrameTime > 0) {
+            const frameTime = currentTime - this.lastFrameTime;
+            this.frameTimes.push(frameTime);
+            
+            // Keep only the last N frames for rolling average
+            if (this.frameTimes.length > this.maxFrameSamples) {
+                this.frameTimes.shift();
+            }
+        }
+        
+        this.lastFrameTime = currentTime;
+        
+        // Update FPS display periodically
+        if (currentTime - this.lastFpsUpdate >= this.fpsUpdateInterval) {
+            this.updateFPSDisplay();
+            this.lastFpsUpdate = currentTime;
+        }
+    }
+
+    /**
+     * Update the FPS display in the UI
+     */
+    updateFPSDisplay() {
+        if (this.frameTimes.length === 0) return;
+        
+        // Calculate average frame time
+        const avgFrameTime = this.frameTimes.reduce((sum, time) => sum + time, 0) / this.frameTimes.length;
+        
+        // Convert to FPS (1000ms / avgFrameTime)
+        const fps = 1000 / avgFrameTime;
+        
+        // Update display
+        const fpsElement = document.getElementById('fpsValue');
+        if (fpsElement) {
+            fpsElement.textContent = Math.round(fps).toString();
+        }
+        
+        // Dispatch FPS event for other components that might want to track performance
+        this.dispatchEvent('fpsUpdated', { fps: Math.round(fps) });
+    }
+
+    /**
+     * Get current FPS
+     * @returns {number} Current FPS
+     */
+    getCurrentFPS() {
+        if (this.frameTimes.length === 0) return 0;
+        
+        const avgFrameTime = this.frameTimes.length > 0 
+            ? this.frameTimes.reduce((sum, time) => sum + time, 0) / this.frameTimes.length 
+            : 0;
+            
+        return avgFrameTime > 0 ? Math.round(1000 / avgFrameTime) : 0;
     }
 
     /**

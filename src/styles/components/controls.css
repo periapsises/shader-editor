@@ -176,6 +176,31 @@
     align-items: center;
 }
 
+.fps-counter {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: var(--font-sm);
+    min-height: 32px;
+}
+
+.fps-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.fps-value {
+    color: var(--text-primary);
+    font-weight: 600;
+    min-width: 2.5rem;
+    text-align: right;
+}
+
 .btn-icon {
     font-size: var(--font-lg);
     line-height: 1;
@@ -266,6 +291,12 @@
         min-width: 40px;
         justify-content: center;
     }
+
+    .fps-counter {
+        min-height: 28px;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: var(--font-xs);
+    }
 }
 
 @media (max-width: 768px) {
@@ -279,5 +310,13 @@
     
     .toolbar-buttons {
         gap: var(--spacing-sm);
+    }
+
+    .fps-counter {
+        gap: var(--spacing-xs);
+    }
+
+    .fps-value {
+        min-width: 1.8rem;
     }
 } 
