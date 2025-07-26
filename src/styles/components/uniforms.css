@@ -10,6 +10,7 @@
     overflow: hidden;
 }
 
+
 .uniform-controls {
     flex: 1;
     overflow: hidden;
@@ -717,6 +718,8 @@
         max-width: 80px;
         font-size: var(--font-xs);
     }
+
+
 } 
 
 /* Resolution control buttons */

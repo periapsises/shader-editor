@@ -175,6 +175,9 @@ export class ShaderEditor {
         document.addEventListener('autosaveIntervalChanged', (e) => {
             this.onAutosaveIntervalChanged(e.detail.intervalMinutes);
         });
+
+        // Setup canvas filtering controls
+        this.setupCanvasFilteringControls();
     }
 
     /**
@@ -1156,6 +1159,26 @@ ${vertexShader}`;
             hash = hash & hash; // Convert to 32bit integer
         }
         return hash;
+    }
+
+    /**
+     * Setup canvas filtering controls
+     */
+    setupCanvasFilteringControls() {
+        const filterSelect = document.getElementById('canvasFilterSelect');
+        
+        if (filterSelect) {
+            filterSelect.addEventListener('change', (e) => {
+                const event = new CustomEvent('canvasFilteringChanged', {
+                    detail: { mode: e.target.value }
+                });
+                document.dispatchEvent(event);
+            });
+
+            // Set initial state based on renderer
+            const currentMode = this.components.renderer.getCanvasFiltering();
+            filterSelect.value = currentMode;
+        }
     }
 
     /**

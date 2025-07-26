@@ -171,6 +171,11 @@
     box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
 }
 
+.toolbar-dropdown {
+    display: flex;
+    align-items: center;
+}
+
 .btn-icon {
     font-size: var(--font-lg);
     line-height: 1;

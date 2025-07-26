@@ -38,6 +38,9 @@ export class WebGLRenderer {
         this.minZoom = 0.1;
         this.maxZoom = 10.0;
         
+        // Canvas filtering mode
+        this.canvasFiltering = 'nearest'; // 'nearest' or 'linear'
+        
         this.init();
     }
 
@@ -65,6 +68,9 @@ export class WebGLRenderer {
         // Set canvas size
         this.canvas.width = this.settings.width;
         this.canvas.height = this.settings.height;
+
+        // Apply initial canvas filtering
+        this.applyCanvasFiltering();
 
         // Setup mouse tracking
         this.canvas.addEventListener('mousemove', (e) => {
@@ -308,6 +314,11 @@ export class WebGLRenderer {
 
         document.addEventListener('viewResetRequested', () => {
             this.resetView();
+        });
+
+        // Listen for canvas filtering changes
+        document.addEventListener('canvasFilteringChanged', (e) => {
+            this.setCanvasFiltering(e.detail.mode);
         });
     }
 
@@ -872,6 +883,42 @@ export class WebGLRenderer {
             offset: { ...this.viewOffset },
             zoom: this.viewZoom
         };
+    }
+
+    /**
+     * Set canvas filtering mode
+     * @param {string} mode - 'nearest' or 'linear'
+     */
+    setCanvasFiltering(mode) {
+        this.canvasFiltering = mode;
+        this.applyCanvasFiltering();
+        
+        this.dispatchEvent('canvasFilteringUpdated', { mode });
+    }
+
+    /**
+     * Apply canvas filtering to the canvas element
+     */
+    applyCanvasFiltering() {
+        if (!this.canvas) return;
+        
+        if (this.canvasFiltering === 'nearest') {
+            // Pixelated/crisp rendering
+            this.canvas.style.imageRendering = 'pixelated';
+            this.canvas.style.imageRendering = '-moz-crisp-edges';
+            this.canvas.style.imageRendering = 'crisp-edges';
+        } else {
+            // Smooth rendering (browser default)
+            this.canvas.style.imageRendering = 'auto';
+        }
+    }
+
+    /**
+     * Get current canvas filtering mode
+     * @returns {string} Current filtering mode
+     */
+    getCanvasFiltering() {
+        return this.canvasFiltering;
     }
 
     /**
