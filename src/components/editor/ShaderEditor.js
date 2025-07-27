@@ -7,6 +7,8 @@ import { PanelManager } from '../ui/PanelManager.js';
 import { CanvasSettings } from '../ui/CanvasSettings.js';
 import { WebGLRenderer } from '../preview/WebGLRenderer.js';
 import { UniformManager } from '../uniforms/UniformManager.js';
+import { ProjectManager } from '../project/ProjectManager.js';
+import { ProjectBrowser } from '../ui/ProjectBrowser.js';
 import { DEFAULT_SETTINGS } from '../../config/settings.js';
 
 /**
@@ -18,20 +20,19 @@ export class ShaderEditor {
         this.settings = DEFAULT_SETTINGS;
         this.mediaRecorder = null;
         this.recordedChunks = [];
-        this.autosaveTimer = null;
-        this.autosaveKey = 'shader_editor_autosave';
-        this.lastAutosaveHash = null;
+        this.projectManager = new ProjectManager();
+        this.currentProjectId = null;
         this.init();
     }
 
     /**
      * Initialize the shader editor
      */
-    init() {
+    async init() {
         this.initializeComponents();
         this.setupEventListeners();
         this.compileInitialShaders();
-        this.initializeAutosave();
+        await this.initializeProjectManager();
     }
 
     /**
@@ -55,6 +56,9 @@ export class ShaderEditor {
             
             // Initialize canvas settings (after renderer)
             this.components.canvasSettings = new CanvasSettings(this.components.renderer);
+            
+            // Initialize project browser (after initialization)
+            this.components.projectBrowser = new ProjectBrowser(this);
         } catch (error) {
             console.error('Failed to initialize components:', error);
             this.components.errorConsole?.showError('Failed to initialize shader editor: ' + error.message);
@@ -147,7 +151,8 @@ export class ShaderEditor {
         });
 
         document.addEventListener('loadRequested', (e) => {
-            this.loadProject(e.detail.data);
+            // Handle file-based project loading (import from file)
+            this.importProjectFromFile(e.detail.data);
         });
 
         // Handle examples browser requests
@@ -190,13 +195,21 @@ export class ShaderEditor {
             this.onViewResetRequested();
         });
 
-        // Handle autosave events
-        document.addEventListener('autosaveToggled', (e) => {
-            this.onAutosaveToggled(e.detail.enabled);
+        // Handle project management events
+        document.addEventListener('projectSaveRequested', (e) => {
+            this.saveCurrentProject(e.detail?.name);
         });
 
-        document.addEventListener('autosaveIntervalChanged', (e) => {
-            this.onAutosaveIntervalChanged(e.detail.intervalMinutes);
+        document.addEventListener('projectLoadRequested', (e) => {
+            this.loadProject(e.detail.projectId);
+        });
+
+        document.addEventListener('projectNewRequested', () => {
+            this.createNewProject();
+        });
+
+        document.addEventListener('projectBrowseRequested', () => {
+            this.components.projectBrowser.show();
         });
 
 
@@ -228,76 +241,64 @@ export class ShaderEditor {
     }
 
     /**
-     * Initialize autosave functionality
+     * Initialize project manager functionality
      */
-    async initializeAutosave() {
-        // Set initial autosave settings from controls
-        if (this.components.controls) {
-            this.settings.autosave.enabled = this.components.controls.isAutosaveEnabled();
-            this.settings.autosave.intervalMinutes = this.components.controls.getAutosaveInterval();
-        }
-
-        // Check for existing autosave data and offer to restore
-        if (this.hasAutosaveData()) {
-            await this.offerAutosaveRestore();
-        }
-
-        // Start autosave if enabled
-        if (this.settings.autosave.enabled) {
-            this.startAutosave();
-        }
-    }
-
-    /**
-     * Offer to restore from autosave data
-     */
-    async offerAutosaveRestore() {
+    async initializeProjectManager() {
         try {
-            const autosaveDataString = localStorage.getItem(this.autosaveKey);
-            if (!autosaveDataString) return;
-
-            const autosaveData = JSON.parse(autosaveDataString);
-            const autosaveDate = new Date(autosaveData.timestamp);
-            const timeAgo = this.getTimeAgo(autosaveDate);
-
-            const restore = confirm(
-                `Autosaved data found from ${timeAgo}.\n\nWould you like to restore your previous work?`
-            );
-
-            if (restore) {
-                const success = await this.restoreFromAutosave();
-                if (success) {
-                    this.showAutosaveNotification('Restored from autosave');
-                }
-            } else {
-                // If user doesn't want to restore, clear the autosave data
-                this.clearAutosaveData();
-            }
+            await this.projectManager.initialize();
+            console.log('ProjectManager initialized successfully');
+            
+            // For now, we start with a new project
+            // In the future, we could restore the last opened project
+            this.createNewProject();
         } catch (error) {
-            console.error('Error offering autosave restore:', error);
+            console.error('Failed to initialize ProjectManager:', error);
         }
     }
 
     /**
-     * Get human-readable time ago string
-     * @param {Date} date - The date to compare
-     * @returns {string} Human-readable time ago
+     * Create a new project
      */
-    getTimeAgo(date) {
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / (1000 * 60));
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        if (diffMins < 1) return 'just now';
-        if (diffMins === 1) return '1 minute ago';
-        if (diffMins < 60) return `${diffMins} minutes ago`;
-        if (diffHours === 1) return '1 hour ago';
-        if (diffHours < 24) return `${diffHours} hours ago`;
-        if (diffDays === 1) return '1 day ago';
-        return `${diffDays} days ago`;
+    createNewProject() {
+        this.currentProjectId = null;
+        // The editor will start with default shaders and settings
+        // which is already handled by the initialization
+        this.dispatchEvent('projectChanged', { 
+            projectId: null, 
+            projectName: 'Untitled Project' 
+        });
     }
+
+    /**
+     * Save the current project
+     * @param {string} projectName - Optional name for the project
+     * @returns {Promise<string>} The project ID
+     */
+    async saveCurrentProject(projectName = null) {
+        try {
+            const currentState = this.exportState();
+            const projectId = await this.projectManager.saveProject(
+                currentState, 
+                projectName, 
+                this.currentProjectId
+            );
+            
+            this.currentProjectId = projectId;
+            
+            const metadata = await this.projectManager.getProjectMetadata(projectId);
+            this.dispatchEvent('projectSaved', { 
+                projectId, 
+                projectName: metadata?.name || 'Untitled Project' 
+            });
+            
+            return projectId;
+        } catch (error) {
+            console.error('Failed to save project:', error);
+            throw error;
+        }
+    }
+
+
 
     /**
      * Synchronize UI state with renderer state
@@ -451,28 +452,31 @@ export class ShaderEditor {
 
 
     /**
-     * Handle autosave toggle event
-     * @param {boolean} enabled - Whether autosave is enabled
+     * Get current project ID
+     * @returns {string|null} The current project ID or null if no project is loaded
      */
-    onAutosaveToggled(enabled) {
-        this.settings.autosave.enabled = enabled;
-        if (enabled) {
-            this.startAutosave();
-        } else {
-            this.stopAutosave();
-        }
+    getCurrentProjectId() {
+        return this.currentProjectId;
     }
 
     /**
-     * Handle autosave interval change event
-     * @param {number} intervalMinutes - New autosave interval in minutes
+     * Check if there are unsaved changes
+     * @returns {boolean} True if there are unsaved changes
      */
-    onAutosaveIntervalChanged(intervalMinutes) {
-        this.settings.autosave.intervalMinutes = intervalMinutes;
-        if (this.settings.autosave.enabled) {
-            this.stopAutosave();
-            this.startAutosave();
-        }
+    hasUnsavedChanges() {
+        // For now, we'll assume there are always unsaved changes
+        // In the future, we could implement change tracking
+        return this.currentProjectId !== null;
+    }
+
+    /**
+     * Dispatch a custom event
+     * @param {string} eventName - The event name
+     * @param {*} detail - The event detail
+     */
+    dispatchEvent(eventName, detail = null) {
+        const event = new CustomEvent(eventName, { detail });
+        document.dispatchEvent(event);
     }
 
     /**
@@ -726,15 +730,38 @@ ${vertexShader}`;
     }
 
     /**
-     * Load project from data
-     * @param {Object} data - Project data to load
+     * Load project from IndexedDB
+     * @param {string} projectId - The project ID to load
      */
-    async loadProject(data) {
+    async loadProject(projectId) {
         try {
-            if (!data.version) {
-                throw new Error('Invalid project file format');
+            const data = await this.projectManager.loadProject(projectId);
+            if (!data) {
+                throw new Error('Project not found');
             }
 
+            await this.importProjectData(data);
+            
+            this.currentProjectId = projectId;
+            const metadata = await this.projectManager.getProjectMetadata(projectId);
+            
+            this.dispatchEvent('projectLoaded', { 
+                projectId, 
+                projectName: metadata?.name || 'Untitled Project' 
+            });
+
+        } catch (error) {
+            console.error('Failed to load project:', error);
+            alert('Failed to load project: ' + error.message);
+        }
+    }
+
+    /**
+     * Import project data (can be used for both loading from IndexedDB and importing from files)
+     * @param {Object} data - Project data to import
+     */
+    async importProjectData(data) {
+        try {
             // Load shaders
             if (data.shaders) {
                 if (data.shaders.vertex) {
@@ -786,8 +813,38 @@ ${vertexShader}`;
             }, 100);
 
         } catch (error) {
-            console.error('Failed to load project:', error);
-            alert('Failed to load project: ' + error.message);
+            console.error('Failed to import project data:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Import a project from file data and save it to IndexedDB
+     * @param {Object} data - Project data from file
+     */
+    async importProjectFromFile(data) {
+        try {
+            if (!data.version) {
+                throw new Error('Invalid project file format');
+            }
+
+            // Import the data into the current editor
+            await this.importProjectData(data);
+            
+            // Save it as a new project in IndexedDB
+            const projectName = `Imported ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+            const projectId = await this.projectManager.saveProject(data, projectName);
+            
+            this.currentProjectId = projectId;
+            
+            this.dispatchEvent('projectImported', { 
+                projectId, 
+                projectName 
+            });
+
+        } catch (error) {
+            console.error('Failed to import project from file:', error);
+            alert('Failed to import project: ' + error.message);
         }
     }
 
@@ -1023,175 +1080,118 @@ ${vertexShader}`;
     }
 
     /**
-     * Start autosave functionality
+     * Get all projects from IndexedDB
+     * @returns {Promise<Array>} Array of project metadata
      */
-    startAutosave() {
-        this.stopAutosave(); // Clear any existing timer
-        
-        if (!this.settings.autosave.enabled) {
-            return;
-        }
-
-        const intervalMs = this.settings.autosave.intervalMinutes * 60 * 1000;
-        this.autosaveTimer = setInterval(() => {
-            this.performAutosave();
-        }, intervalMs);
-
-    }
-
-    /**
-     * Stop autosave functionality
-     */
-    stopAutosave() {
-        if (this.autosaveTimer) {
-            clearInterval(this.autosaveTimer);
-            this.autosaveTimer = null;
-        }
-    }
-
-    /**
-     * Perform autosave operation
-     */
-    async performAutosave() {
+    async getAllProjects() {
         try {
-            const currentState = this.exportState();
-            const stateString = JSON.stringify(currentState);
-            
-            // Create a simple hash to check if content has changed
-            const stateHash = this.simpleHash(stateString);
-            
-            // Only save if content has changed
-            if (stateHash === this.lastAutosaveHash) {
-                return;
-            }
-
-            // Check localStorage size limit
-            if (stateString.length > this.settings.autosave.maxStorageSize) {
-                console.warn('Autosave skipped: Content too large for localStorage');
-                return;
-            }
-
-            // Save to localStorage
-            const autosaveData = {
-                timestamp: new Date().toISOString(),
-                state: currentState,
-                hash: stateHash
-            };
-
-            localStorage.setItem(this.autosaveKey, JSON.stringify(autosaveData));
-            this.lastAutosaveHash = stateHash;
-
-            // Show notification if enabled
-            if (this.settings.autosave.showNotifications) {
-                this.showAutosaveNotification();
-            }
-
+            return await this.projectManager.getAllProjects();
         } catch (error) {
-            console.error('Autosave failed:', error);
+            console.error('Failed to get projects:', error);
+            return [];
         }
     }
 
     /**
-     * Show autosave notification
-     * @param {string} message - Custom message to show
+     * Delete a project from IndexedDB
+     * @param {string} projectId - The project ID to delete
+     * @returns {Promise<boolean>} True if deletion was successful
      */
-    showAutosaveNotification(message = 'Autosaved') {
-        // Create a simple notification element
-        const notification = document.createElement('div');
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--accent-primary, #4a90e2);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
-            z-index: 10000;
-            transition: opacity 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        `;
+    async deleteProject(projectId) {
+        try {
+            const success = await this.projectManager.deleteProject(projectId);
+            if (success && projectId === this.currentProjectId) {
+                this.createNewProject(); // Reset to new project if current was deleted
+            }
+            return success;
+        } catch (error) {
+            console.error('Failed to delete project:', error);
+            return false;
+        }
+    }
 
-        document.body.appendChild(notification);
+    /**
+     * Update project name
+     * @param {string} projectId - The project ID
+     * @param {string} newName - The new name
+     * @returns {Promise<boolean>} True if update was successful
+     */
+    async updateProjectName(projectId, newName) {
+        try {
+            return await this.projectManager.updateProjectName(projectId, newName);
+        } catch (error) {
+            console.error('Failed to update project name:', error);
+            return false;
+        }
+    }
 
-        // Remove notification after 2 seconds
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    document.body.removeChild(notification);
+    /**
+     * Export project to file (for backup/sharing)
+     * @param {string} projectId - The project ID to export
+     */
+    async exportProjectToFile(projectId) {
+        try {
+            const projectData = await this.projectManager.exportProject(projectId);
+            if (!projectData) {
+                throw new Error('Project not found');
+            }
+
+            const dataStr = JSON.stringify(projectData, null, 2);
+            const fileName = `${projectData.name || 'project'}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+
+            // Try to use File System Access API for modern browsers
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{
+                            description: 'Shader Project files',
+                            accept: {
+                                'application/json': ['.json']
+                            }
+                        }]
+                    });
+
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(dataStr);
+                    await writable.close();
+                    
+                    return;
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        return; // User cancelled
+                    }
+                    throw error;
                 }
-            }, 300);
-        }, 2000);
-    }
-
-    /**
-     * Check if autosaved data exists
-     * @returns {boolean} True if autosaved data exists
-     */
-    hasAutosaveData() {
-        try {
-            const autosaveData = localStorage.getItem(this.autosaveKey);
-            return autosaveData !== null;
-        } catch (error) {
-            console.error('Error checking autosave data:', error);
-            return false;
-        }
-    }
-
-    /**
-     * Restore from autosave
-     * @returns {boolean} True if restore was successful
-     */
-    async restoreFromAutosave() {
-        try {
-            const autosaveDataString = localStorage.getItem(this.autosaveKey);
-            if (!autosaveDataString) {
-                return false;
             }
 
-            const autosaveData = JSON.parse(autosaveDataString);
-            if (!autosaveData.state) {
-                return false;
-            }
-
-            // Import the autosaved state
-            await this.importState(autosaveData.state);
-            this.lastAutosaveHash = autosaveData.hash;
-
-            return true;
+            // Fallback to download for older browsers
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            
         } catch (error) {
-            console.error('Failed to restore from autosave:', error);
-            return false;
+            console.error('Failed to export project:', error);
+            alert('Failed to export project: ' + error.message);
         }
     }
 
     /**
-     * Clear autosave data
+     * Get storage information
+     * @returns {Promise<Object|null>} Storage usage information
      */
-    clearAutosaveData() {
+    async getStorageInfo() {
         try {
-            localStorage.removeItem(this.autosaveKey);
-            this.lastAutosaveHash = null;
+            return await this.projectManager.getStorageInfo();
         } catch (error) {
-            console.error('Error clearing autosave data:', error);
+            console.error('Failed to get storage info:', error);
+            return null;
         }
-    }
-
-    /**
-     * Simple hash function for content comparison
-     * @param {string} str - String to hash
-     * @returns {number} Simple hash value
-     */
-    simpleHash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32bit integer
-        }
-        return hash;
     }
 
 
@@ -1200,9 +1200,6 @@ ${vertexShader}`;
      * Clean up resources
      */
     destroy() {
-        // Stop autosave before cleanup
-        this.stopAutosave();
-        
         // Clean up all components
         Object.values(this.components).forEach(component => {
             if (component && typeof component.destroy === 'function') {
@@ -1212,5 +1209,9 @@ ${vertexShader}`;
 
         // Clear components
         this.components = {};
+        
+        // Clear project manager reference
+        this.projectManager = null;
+        this.currentProjectId = null;
     }
 } 

@@ -88,17 +88,7 @@
                                 <button class="menu-item-small" data-save-type="vertex">Vertex Only</button>
                             </div>
                         </div>
-                        <div class="menu-section">
-                            <h4>Project</h4>
-                            <button id="exportBtn" class="menu-item" title="Export project">
-                                <span class="menu-icon">📦</span>
-                                <span class="menu-text">Export Project</span>
-                            </button>
-                            <button id="loadBtn" class="menu-item" title="Load project">
-                                <span class="menu-icon">📂</span>
-                                <span class="menu-text">Load Project</span>
-                            </button>
-                        </div>
+
                         <div class="menu-section">
                             <h4>Examples</h4>
                             <button id="examplesBtn" class="menu-item" title="Browse example shaders">
@@ -136,36 +126,35 @@
                     </div>
                 </div>
 
-                <!-- Settings Menu -->
+                <!-- Projects Menu -->
                 <div class="toolbar-menu">
-                    <button class="toolbar-menu-btn" id="settingsMenuBtn" title="Settings and preferences">
-                        <span class="btn-icon">⚙️</span>
-                        <span class="btn-text">Settings</span>
+                    <button class="toolbar-menu-btn" id="projectsMenuBtn" title="Project management">
+                        <span class="btn-icon">📁</span>
+                        <span class="btn-text">Projects</span>
                         <span class="menu-arrow">▼</span>
                     </button>
-                    <div class="toolbar-menu-panel" id="settingsMenuPanel">
-
+                    <div class="toolbar-menu-panel" id="projectsMenuPanel">
                         <div class="menu-section">
-                            <h4>Autosave</h4>
-                            <div class="menu-control">
-                                <label class="menu-checkbox">
-                                    <input type="checkbox" id="autosaveToggle" checked>
-                                    <span>Enable Autosave</span>
-                                </label>
-                                <div class="menu-control">
-                                    <label>Interval:</label>
-                                    <select id="autosaveInterval" class="menu-select" title="Autosave interval">
-                                        <option value="0.5">30s</option>
-                                        <option value="1" selected>1m</option>
-                                        <option value="2">2m</option>
-                                        <option value="5">5m</option>
-                                    </select>
-                                </div>
-                            </div>
+                            <h4>Current Project</h4>
+                            <button id="saveCurrentBtn" class="menu-item" title="Save current project">
+                                <span class="menu-icon">💾</span>
+                                <span class="menu-text">Save Current</span>
+                            </button>
+                            <button id="newProjectBtn" class="menu-item" title="Create new project">
+                                <span class="menu-icon">📄</span>
+                                <span class="menu-text">New Project</span>
+                            </button>
                         </div>
-
+                        <div class="menu-section">
+                            <h4>Browse Projects</h4>
+                            <button id="browseProjectsBtn" class="menu-item" title="Browse all projects">
+                                <span class="menu-icon">📂</span>
+                                <span class="menu-text">Browse Projects</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
             <!-- Hidden elements -->
