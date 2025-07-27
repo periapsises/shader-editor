@@ -17,6 +17,7 @@
     object-fit: contain;
     border: 1px solid var(--border-primary);
     transition: cursor 0.2s ease;
+    aspect-ratio: var(--canvas-aspect-ratio, 1);
 }
 
 /* Pan/zoom cursor states */

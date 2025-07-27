@@ -143,16 +143,7 @@
                         <span class="menu-arrow">▼</span>
                     </button>
                     <div class="toolbar-menu-panel" id="settingsMenuPanel">
-                        <div class="menu-section">
-                            <h4>Canvas</h4>
-                            <div class="menu-control">
-                                <label>Filtering:</label>
-                                <select id="canvasFilterSelect" class="menu-select" title="Canvas filtering mode">
-                                    <option value="nearest" selected>Pixelated</option>
-                                    <option value="linear">Smooth</option>
-                                </select>
-                            </div>
-                        </div>
+
                         <div class="menu-section">
                             <h4>Autosave</h4>
                             <div class="menu-control">
@@ -185,9 +176,9 @@
             </div>
         </div>
         
-        <!-- Resizable Panel System -->
+        <!-- Simplified Two-Panel System -->
         <div class="workspace" id="workspace">
-            <!-- Left Panel Area -->
+            <!-- Left Panel Area (Editor) -->
             <div class="panel-area left-area" id="leftArea">
                 <div class="editor-panel">
                     <div class="tabs">
@@ -200,29 +191,114 @@
                 </div>
             </div>
             
-            <!-- Horizontal Splitter -->
-            <div class="splitter horizontal-splitter" id="leftSplitter" data-direction="horizontal"></div>
+            <!-- Vertical Splitter -->
+            <div class="splitter horizontal-splitter" id="mainSplitter" data-direction="horizontal"></div>
             
-            <!-- Center Panel Area -->
-            <div class="panel-area center-area" id="centerArea">
+            <!-- Right Panel Area (Canvas) -->
+            <div class="panel-area right-area" id="rightArea">
                 <div class="preview-panel">
                     <canvas id="glCanvas" width="512" height="512"></canvas>
                 </div>
             </div>
             
-            <!-- Horizontal Splitter -->
-            <div class="splitter horizontal-splitter" id="rightSplitter" data-direction="horizontal"></div>
-            
-            <!-- Right Panel Area -->
-            <div class="panel-area right-area" id="rightArea">
-                <div class="uniform-panel">
-                    <div class="uniform-controls">
-                        <div class="uniform-header">
-                            <h3>Uniforms</h3>
+            <!-- Collapsible Settings Panel Overlay -->
+            <div class="uniform-overlay collapsed" id="uniformOverlay">
+                <div class="overlay-sidebar">
+                    <button class="uniform-toggle" id="uniformToggle" title="Toggle Settings Panel">
+                        <span class="toggle-icon">◀</span>
+                    </button>
+                    
+                    <!-- Vertical Tab Navigation -->
+                    <div class="vertical-tabs" id="verticalTabs">
+                        <button class="tab-btn vertical active" data-tab="canvas" title="Canvas Settings">
+                            <span class="tab-label">Canvas</span>
+                        </button>
+                        <button class="tab-btn vertical" data-tab="uniforms" title="Shader Uniforms">
+                            <span class="tab-label">Uniforms</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="settings-panel">
+                    
+                    <!-- Tab Content Area -->
+                    <div class="tab-content-area">
+                        <!-- Canvas Tab -->
+                        <div class="tab-content active" id="canvasTab">
+                            <div class="canvas-controls">
+                                <div class="canvas-header">
+                                    <h3>Canvas Settings</h3>
+                                </div>
+                                
+                                <div class="canvas-settings">
+                                    <div class="setting-group">
+                                        <label>Canvas Size</label>
+                                        <div class="setting-row">
+                                            <input type="number" id="canvasWidth" value="512" min="64" max="2048" step="64">
+                                            <span>×</span>
+                                            <input type="number" id="canvasHeight" value="512" min="64" max="2048" step="64">
+                                        </div>
+                                        <div class="resolution-presets">
+                                            <button class="preset-btn" data-width="512" data-height="512">512×512 (1:1)</button>
+                                            <button class="preset-btn" data-width="1024" data-height="1024">1024×1024 (1:1)</button>
+                                            <button class="preset-btn" data-width="1920" data-height="1080">1920×1080 (16:9)</button>
+                                            <button class="preset-btn" data-width="1280" data-height="720">1280×720 (16:9)</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="setting-group">
+                                        <label>Background</label>
+                                        <select id="canvasBackground">
+                                            <option value="transparent">Transparent</option>
+                                            <option value="black">Black</option>
+                                            <option value="white">White</option>
+                                            <option value="checkerboard">Checkerboard</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="setting-group">
+                                        <label>Render Quality</label>
+                                        <select id="renderQuality">
+                                            <option value="1">Standard (1x)</option>
+                                            <option value="2">High (2x)</option>
+                                            <option value="4">Ultra (4x)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="setting-group">
+                                        <label>Texture Filtering</label>
+                                        <select id="canvasFilterSelect">
+                                            <option value="nearest" selected>Pixelated</option>
+                                            <option value="linear">Smooth</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="setting-group">
+                                        <label>Animation</label>
+                                        <div class="setting-row animation-controls">
+                                            <button id="playPauseBtn" class="control-btn" title="Play/Pause animation">▶</button>
+                                            <button id="resetTimeBtn" class="control-btn" title="Reset time to 0">⏹</button>
+                                            <div class="checkbox-control">
+                                                <input type="checkbox" id="resetOnCompile" checked>
+                                                <label for="resetOnCompile">Reset on compile</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="uniform-list">
-                            <!-- Uniforms will be dynamically generated here -->
+                        <!-- Uniforms Tab -->
+                        <div class="tab-content" id="uniformsTab">
+                            <div class="uniform-controls">
+                                <div class="uniform-header">
+                                    <h3>Shader Uniforms</h3>
+                                </div>
+                                
+                                <div class="uniform-list">
+                                    <!-- Uniforms will be dynamically generated here -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

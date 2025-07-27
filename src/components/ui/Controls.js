@@ -154,11 +154,7 @@ export class Controls {
             this.elements.set('settingsMenuPanel', settingsMenuPanel);
         }
 
-        // Canvas filter select
-        const canvasFilterSelect = document.getElementById('canvasFilterSelect');
-        if (canvasFilterSelect) {
-            this.elements.set('canvasFilterSelect', canvasFilterSelect);
-        }
+
 
 
     }
@@ -354,15 +350,7 @@ export class Controls {
             this.eventListeners.set('fileMenuPanel', listener);
         }
 
-        // Canvas filter select
-        const canvasFilterSelect = this.elements.get('canvasFilterSelect');
-        if (canvasFilterSelect) {
-            const listener = (e) => {
-                this.onCanvasFilterChange(e.target.value);
-            };
-            canvasFilterSelect.addEventListener('change', listener);
-            this.eventListeners.set('canvasFilterSelect', listener);
-        }
+
 
 
 
@@ -728,13 +716,7 @@ export class Controls {
         });
     }
 
-    /**
-     * Handle canvas filter change
-     * @param {string} filterMode - The filter mode ('nearest' or 'linear')
-     */
-    onCanvasFilterChange(filterMode) {
-        this.dispatchEvent('canvasFilteringChanged', { mode: filterMode });
-    }
+
 
 
 

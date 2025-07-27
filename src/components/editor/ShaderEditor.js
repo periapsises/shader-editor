@@ -4,6 +4,7 @@ import { Controls } from '../ui/Controls.js';
 import { ErrorConsole } from '../ui/ErrorConsole.js';
 import { ExampleBrowser } from '../ui/ExampleBrowser.js';
 import { PanelManager } from '../ui/PanelManager.js';
+import { CanvasSettings } from '../ui/CanvasSettings.js';
 import { WebGLRenderer } from '../preview/WebGLRenderer.js';
 import { UniformManager } from '../uniforms/UniformManager.js';
 import { DEFAULT_SETTINGS } from '../../config/settings.js';
@@ -51,6 +52,9 @@ export class ShaderEditor {
             
             // Initialize WebGL renderer
             this.components.renderer = new WebGLRenderer('glCanvas');
+            
+            // Initialize canvas settings (after renderer)
+            this.components.canvasSettings = new CanvasSettings(this.components.renderer);
         } catch (error) {
             console.error('Failed to initialize components:', error);
             this.components.errorConsole?.showError('Failed to initialize shader editor: ' + error.message);
@@ -202,8 +206,7 @@ export class ShaderEditor {
             this.compileShaders();
             // Ensure UI button states are synchronized with renderer state
             this.syncUIWithRendererState();
-            // Setup canvas filtering controls now that renderer is ready
-            this.setupCanvasFilteringControls();
+
         }, 100);
     }
 
@@ -1174,33 +1177,7 @@ ${vertexShader}`;
         return hash;
     }
 
-    /**
-     * Setup canvas filtering controls
-     */
-    setupCanvasFilteringControls() {
-        const filterSelect = document.getElementById('canvasFilterSelect');
-        
-        if (filterSelect) {
-            filterSelect.addEventListener('change', (e) => {
-                const event = new CustomEvent('canvasFilteringChanged', {
-                    detail: { mode: e.target.value }
-                });
-                document.dispatchEvent(event);
-            });
 
-            // Set initial state based on renderer (if available)
-            if (this.components.renderer && typeof this.components.renderer.getCanvasFiltering === 'function') {
-                try {
-                    const currentMode = this.components.renderer.getCanvasFiltering();
-                    filterSelect.value = currentMode;
-                } catch (error) {
-                    console.warn('Could not get canvas filtering mode:', error);
-                    // Use default value
-                    filterSelect.value = 'nearest';
-                }
-            }
-        }
-    }
 
     /**
      * Clean up resources

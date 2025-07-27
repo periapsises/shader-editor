@@ -1,14 +1,16 @@
 /**
- * PanelManager - Handles resizable panels with splitters
+ * PanelManager - Handles resizable panels with splitter and collapsible uniform overlay
  */
 export class PanelManager {
     constructor() {
-        this.splitters = new Map();
+        this.splitter = null;
         this.isDragging = false;
         this.dragData = null;
+        this.uniformOverlay = null;
+        
+        // Simplified layout configuration (just editor/canvas split)
         this.layoutConfig = {
-            leftWidth: 33, // percentage
-            rightWidth: 33, // percentage
+            leftWidth: 50  // Left panel percentage (editor), right gets remainder
         };
         
         this.init();
@@ -18,33 +20,103 @@ export class PanelManager {
      * Initialize the panel manager
      */
     init() {
-        this.setupSplitters();
+        this.setupSplitter();
+        this.setupUniformOverlay();
         this.setupEventListeners();
         this.loadLayoutConfig();
     }
 
+    /**
+     * Setup the main splitter for editor/canvas resizing
+     */
+    setupSplitter() {
+        const splitterElement = document.getElementById('mainSplitter');
+        if (splitterElement) {
+            this.splitter = {
+                element: splitterElement,
+                isDragging: false
+            };
 
+            splitterElement.addEventListener('mousedown', (e) => {
+                this.startSplitterDrag(e);
+            });
+        }
+    }
 
     /**
-     * Setup splitter elements for resizing
+     * Setup the collapsible uniform overlay and vertical tabs
      */
-    setupSplitters() {
-        const splitterElements = document.querySelectorAll('.splitter');
+    setupUniformOverlay() {
+        this.uniformOverlay = document.getElementById('uniformOverlay');
+        const toggleBtn = document.getElementById('uniformToggle');
         
-        splitterElements.forEach(splitter => {
-            const direction = splitter.dataset.direction;
-            const splitterId = splitter.id;
-            
-            this.splitters.set(splitterId, {
-                element: splitter,
-                direction: direction,
-                isDragging: false
+        if (toggleBtn && this.uniformOverlay) {
+            toggleBtn.addEventListener('click', () => {
+                this.toggleUniformOverlay();
             });
+        }
+        
+        // Setup vertical tabs
+        this.setupVerticalTabs();
+    }
 
-            splitter.addEventListener('mousedown', (e) => {
-                this.startSplitterDrag(e, splitterId);
+    /**
+     * Setup vertical tab switching
+     */
+    setupVerticalTabs() {
+        const tabButtons = document.querySelectorAll('.tab-btn.vertical');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.dataset.tab;
+                
+                // If panel is collapsed, expand it first
+                if (this.uniformOverlay && this.uniformOverlay.classList.contains('collapsed')) {
+                    this.toggleUniformOverlay();
+                }
+                
+                // Then switch to the requested tab
+                this.switchToTab(tabId);
             });
         });
+        
+        // Load saved active tab
+        const savedTab = localStorage.getItem('activeSettingsTab') || 'canvas';
+        this.switchToTab(savedTab);
+    }
+
+    /**
+     * Switch to a specific tab
+     */
+    switchToTab(tabId) {
+        // Update button states
+        const tabButtons = document.querySelectorAll('.tab-btn.vertical');
+        tabButtons.forEach(button => {
+            button.classList.toggle('active', button.dataset.tab === tabId);
+        });
+        
+        // Update content visibility
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabContents.forEach(content => {
+            content.classList.toggle('active', content.id === `${tabId}Tab`);
+        });
+        
+        // Save active tab
+        localStorage.setItem('activeSettingsTab', tabId);
+    }
+
+    /**
+     * Toggle the uniform overlay expanded/collapsed
+     */
+    toggleUniformOverlay() {
+        if (this.uniformOverlay) {
+            this.uniformOverlay.classList.toggle('collapsed');
+            
+            // Save state to localStorage
+            const isCollapsed = this.uniformOverlay.classList.contains('collapsed');
+            localStorage.setItem('uniformOverlayCollapsed', isCollapsed);
+        }
     }
 
     /**
@@ -52,11 +124,15 @@ export class PanelManager {
      */
     setupEventListeners() {
         document.addEventListener('mousemove', (e) => {
-            this.handleMouseMove(e);
+            if (this.isDragging) {
+                this.handleMouseMove(e);
+            }
         });
 
         document.addEventListener('mouseup', (e) => {
-            this.handleMouseUp(e);
+            if (this.isDragging) {
+                this.handleMouseUp(e);
+            }
         });
 
         // Prevent text selection during drag
@@ -68,143 +144,40 @@ export class PanelManager {
     }
 
     /**
-     * Start dragging a splitter
+     * Start dragging the splitter
      */
-    startSplitterDrag(e, splitterId) {
+    startSplitterDrag(e) {
         this.isDragging = true;
         this.dragData = {
-            type: 'splitter',
-            splitterId: splitterId,
             startX: e.clientX,
-            startY: e.clientY,
-            // Store initial layout state
-            initialLeftWidth: this.layoutConfig.leftWidth,
-            initialRightWidth: this.layoutConfig.rightWidth
+            initialLeftWidth: this.layoutConfig.leftWidth
         };
 
-        const splitter = this.splitters.get(splitterId);
-        splitter.element.classList.add('dragging');
-        
-        document.body.style.cursor = splitter.direction === 'horizontal' ? 'col-resize' : 'row-resize';
+        if (this.splitter) {
+            this.splitter.element.classList.add('dragging');
+        }
+
+        e.preventDefault();
     }
 
     /**
-     * Handle mouse move during drag
+     * Handle mouse movement during drag
      */
     handleMouseMove(e) {
         if (!this.isDragging || !this.dragData) return;
 
-        if (this.dragData.type === 'splitter') {
-            this.handleSplitterDrag(e);
-        }
-    }
-
-    /**
-     * Handle splitter dragging
-     */
-    handleSplitterDrag(e) {
         const workspace = document.getElementById('workspace');
-        const workspaceRect = workspace.getBoundingClientRect();
-        
-        if (this.dragData.splitterId === 'leftSplitter') {
-            // Calculate desired left width based on mouse position
-            const mouseRelativeX = e.clientX - workspaceRect.left;
-            const desiredLeftWidth = (mouseRelativeX / workspaceRect.width) * 100;
-            
-            // Calculate new layout with cascading constraints
-            const newLayout = this.calculateCascadingLayout('left', desiredLeftWidth);
-            this.applyTemporaryLayout(newLayout.left, newLayout.right);
-            
-        } else if (this.dragData.splitterId === 'rightSplitter') {
-            // Calculate desired right width based on distance from right edge
-            const mouseRelativeX = e.clientX - workspaceRect.left;
-            const distanceFromRight = workspaceRect.width - mouseRelativeX;
-            const desiredRightWidth = (distanceFromRight / workspaceRect.width) * 100;
-            
-            // Calculate new layout with cascading constraints
-            const newLayout = this.calculateCascadingLayout('right', desiredRightWidth);
-            this.applyTemporaryLayout(newLayout.left, newLayout.right);
-        }
-    }
+        if (!workspace) return;
 
-    /**
-     * Calculate layout with cascading push behavior
-     * @param {string} draggedSide - 'left' or 'right'
-     * @param {number} desiredWidth - Desired width for the dragged panel
-     * @returns {Object} Object with left and right widths
-     */
-    calculateCascadingLayout(draggedSide, desiredWidth) {
-        const minWidth = 15; // Minimum width for any panel
-        let leftWidth = this.dragData.initialLeftWidth;
-        let rightWidth = this.dragData.initialRightWidth;
-        let centerWidth = 100 - leftWidth - rightWidth;
+        const workspaceRect = workspace.getBoundingClientRect();
+        const mouseX = e.clientX - workspaceRect.left;
+        const workspaceWidth = workspaceRect.width;
         
-        if (draggedSide === 'left') {
-            // Calculate how much the left panel wants to change
-            const requestedLeftWidth = Math.max(minWidth, desiredWidth);
-            const deltaLeft = requestedLeftWidth - leftWidth;
-            
-            if (deltaLeft > 0) {
-                // Expanding left panel - first try to shrink center
-                const availableFromCenter = Math.max(0, centerWidth - minWidth);
-                const takeFromCenter = Math.min(deltaLeft, availableFromCenter);
-                
-                leftWidth += takeFromCenter;
-                centerWidth -= takeFromCenter;
-                
-                const remainingDelta = deltaLeft - takeFromCenter;
-                
-                // If center hit minimum and we still need space, push right splitter
-                if (remainingDelta > 0 && centerWidth <= minWidth) {
-                    const availableFromRight = Math.max(0, rightWidth - minWidth);
-                    const takeFromRight = Math.min(remainingDelta, availableFromRight);
-                    
-                    leftWidth += takeFromRight;
-                    rightWidth -= takeFromRight;
-                }
-            } else if (deltaLeft < 0) {
-                // Shrinking left panel - only allow if above minimum
-                const actualShrink = Math.min(Math.abs(deltaLeft), leftWidth - minWidth);
-                leftWidth -= actualShrink;
-                centerWidth += actualShrink; // Give space back to center
-            }
-            
-        } else {
-            // Calculate how much the right panel wants to change
-            const requestedRightWidth = Math.max(minWidth, desiredWidth);
-            const deltaRight = requestedRightWidth - rightWidth;
-            
-            if (deltaRight > 0) {
-                // Expanding right panel - first try to shrink center
-                const availableFromCenter = Math.max(0, centerWidth - minWidth);
-                const takeFromCenter = Math.min(deltaRight, availableFromCenter);
-                
-                rightWidth += takeFromCenter;
-                centerWidth -= takeFromCenter;
-                
-                const remainingDelta = deltaRight - takeFromCenter;
-                
-                // If center hit minimum and we still need space, push left splitter
-                if (remainingDelta > 0 && centerWidth <= minWidth) {
-                    const availableFromLeft = Math.max(0, leftWidth - minWidth);
-                    const takeFromLeft = Math.min(remainingDelta, availableFromLeft);
-                    
-                    rightWidth += takeFromLeft;
-                    leftWidth -= takeFromLeft;
-                }
-            } else if (deltaRight < 0) {
-                // Shrinking right panel - only allow if above minimum
-                const actualShrink = Math.min(Math.abs(deltaRight), rightWidth - minWidth);
-                rightWidth -= actualShrink;
-                centerWidth += actualShrink; // Give space back to center
-            }
-        }
+        // Calculate new left panel width as percentage
+        const newLeftWidth = Math.max(20, Math.min(80, (mouseX / workspaceWidth) * 100));
         
-        // Debug logging
-        const finalCenterWidth = 100 - leftWidth - rightWidth;
-        console.log(`Push calc: ${draggedSide} splitter, desired: ${desiredWidth.toFixed(1)}%, result: L=${leftWidth.toFixed(1)}%, C=${finalCenterWidth.toFixed(1)}%, R=${rightWidth.toFixed(1)}%`);
-        
-        return { left: leftWidth, right: rightWidth };
+        // Apply temporary layout during drag
+        this.applyLayout({ leftWidth: newLeftWidth });
     }
 
     /**
@@ -213,75 +186,47 @@ export class PanelManager {
     handleMouseUp(e) {
         if (!this.isDragging) return;
 
-        if (this.dragData && this.dragData.type === 'splitter') {
-            const splitter = this.splitters.get(this.dragData.splitterId);
-            if (splitter) {
-                splitter.element.classList.remove('dragging');
-            }
-
-            // Calculate final layout values using the same cascading logic
-            const workspace = document.getElementById('workspace');
-            const workspaceRect = workspace.getBoundingClientRect();
-            
-            if (this.dragData.splitterId === 'leftSplitter') {
-                const mouseRelativeX = e.clientX - workspaceRect.left;
-                const desiredLeftWidth = (mouseRelativeX / workspaceRect.width) * 100;
-                
-                const finalLayout = this.calculateCascadingLayout('left', desiredLeftWidth);
-                this.layoutConfig.leftWidth = finalLayout.left;
-                this.layoutConfig.rightWidth = finalLayout.right;
-                
-            } else if (this.dragData.splitterId === 'rightSplitter') {
-                const mouseRelativeX = e.clientX - workspaceRect.left;
-                const distanceFromRight = workspaceRect.width - mouseRelativeX;
-                const desiredRightWidth = (distanceFromRight / workspaceRect.width) * 100;
-                
-                const finalLayout = this.calculateCascadingLayout('right', desiredRightWidth);
-                this.layoutConfig.leftWidth = finalLayout.left;
-                this.layoutConfig.rightWidth = finalLayout.right;
-            }
-
-            // Apply final layout and save configuration
-            this.applyLayout();
-            this.saveLayoutConfig();
+        this.isDragging = false;
+        
+        if (this.splitter) {
+            this.splitter.element.classList.remove('dragging');
         }
 
-        this.isDragging = false;
+        // Save final layout
+        this.saveLayoutConfig();
         this.dragData = null;
-        document.body.style.cursor = '';
     }
 
     /**
-     * Apply temporary layout during drag (visual only)
+     * Apply layout configuration to panel areas
      */
-    applyTemporaryLayout(leftWidth, rightWidth) {
+    applyLayout(config = this.layoutConfig) {
         const leftArea = document.getElementById('leftArea');
-        const centerArea = document.getElementById('centerArea');
         const rightArea = document.getElementById('rightArea');
-
-        const centerWidth = 100 - leftWidth - rightWidth;
-
-        if (leftArea) leftArea.style.flex = `0 0 ${leftWidth}%`;
-        if (centerArea) centerArea.style.flex = `0 0 ${centerWidth}%`;
-        if (rightArea) rightArea.style.flex = `0 0 ${rightWidth}%`;
-    }
-
-    /**
-     * Apply layout configuration
-     */
-    applyLayout() {
-        this.applyTemporaryLayout(this.layoutConfig.leftWidth, this.layoutConfig.rightWidth);
+        
+        if (leftArea && rightArea) {
+            const leftWidth = config.leftWidth;
+            const rightWidth = 100 - leftWidth;
+            
+            leftArea.style.flexBasis = `${leftWidth}%`;
+            rightArea.style.flexBasis = `${rightWidth}%`;
+            
+            // Update internal config
+            this.layoutConfig.leftWidth = leftWidth;
+        }
     }
 
     /**
      * Save layout configuration to localStorage
      */
     saveLayoutConfig() {
-        const config = {
-            layout: this.layoutConfig
-        };
-
-        localStorage.setItem('shader_editor_layout', JSON.stringify(config));
+        try {
+            localStorage.setItem('panelLayout', JSON.stringify({
+                leftWidth: this.layoutConfig.leftWidth
+            }));
+        } catch (error) {
+            console.warn('Failed to save layout configuration:', error);
+        }
     }
 
     /**
@@ -289,39 +234,28 @@ export class PanelManager {
      */
     loadLayoutConfig() {
         try {
-            const saved = localStorage.getItem('shader_editor_layout');
+            const saved = localStorage.getItem('panelLayout');
             if (saved) {
                 const config = JSON.parse(saved);
-                
-                if (config.layout) {
-                    this.layoutConfig = { ...this.layoutConfig, ...config.layout };
-                    this.applyLayout();
-                }
+                this.layoutConfig.leftWidth = config.leftWidth || 50;
             }
+            
+            // Load uniform overlay state
+            const uniformCollapsed = localStorage.getItem('uniformOverlayCollapsed');
+            if (uniformCollapsed === 'true' && this.uniformOverlay) {
+                this.uniformOverlay.classList.add('collapsed');
+            } else if (uniformCollapsed === 'false' && this.uniformOverlay) {
+                this.uniformOverlay.classList.remove('collapsed');
+            }
+            
+            // Load active tab state (handled in setupVerticalTabs)
+            // This is here as a reference point for the loading order
+            
+            // Apply the loaded layout
+            this.applyLayout();
         } catch (error) {
             console.warn('Failed to load layout configuration:', error);
+            this.applyLayout(); // Apply default layout
         }
-    }
-
-    /**
-     * Reset layout to default
-     */
-    resetLayout() {
-        this.layoutConfig = {
-            leftWidth: 33,
-            rightWidth: 33
-        };
-
-        this.applyLayout();
-        this.saveLayoutConfig();
-    }
-
-    /**
-     * Cleanup
-     */
-    destroy() {
-        // Clean up event listeners and reset styles
-        document.body.style.cursor = '';
-        this.splitters.clear();
     }
 } 

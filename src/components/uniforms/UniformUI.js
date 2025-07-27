@@ -44,18 +44,7 @@ export class UniformUI {
         const valueControl = this.createValueControl(uniformName, uniformType, defaultValue);
         valueControl.id = `${uniformName}Value`;
 
-        // Add time control buttons for time uniforms
-        const builtinType = this.uniformManager.builtinAssociations.get(uniformName);
-        if (builtinType === 'time') {
-            const timeButtons = this.createTimeButtons(uniformName);
-            infoDiv.appendChild(timeButtons);
-        }
-
-        // Add resize button for resolution uniforms
-        if (builtinType === 'resolution') {
-            const resolutionButtons = this.createResolutionButtons(uniformName);
-            infoDiv.appendChild(resolutionButtons);
-        }
+        // No additional buttons for builtin uniforms - settings are now in Canvas tab
 
         mainContainer.appendChild(infoDiv);
         mainContainer.appendChild(valueControl);
@@ -140,6 +129,28 @@ export class UniformUI {
     }
 
     /**
+     * Get description for builtin uniform types
+     * @param {string} builtinType - The builtin type
+     * @returns {string} Human-readable description
+     */
+    getBuiltinDescription(builtinType) {
+        switch (builtinType) {
+            case 'time':
+                return 'animation time';
+            case 'resolution':
+                return 'canvas resolution';
+            case 'mouse':
+                return 'mouse position';
+            case 'lastFrame':
+                return 'previous frame texture';
+            case 'keyState':
+                return 'keyboard input';
+            default:
+                return 'system value';
+        }
+    }
+
+    /**
      * Create value control for uniform
      * @param {string} uniformName - The uniform name
      * @param {string} uniformType - The uniform type
@@ -149,35 +160,25 @@ export class UniformUI {
     createValueControl(uniformName, uniformType, defaultValue) {
         const builtinType = this.uniformManager.builtinAssociations.get(uniformName);
         
-        // For built-in uniforms (except time and resolution), show read-only display
-        if (builtinType && builtinType !== 'time' && builtinType !== 'resolution') {
+        // For all built-in uniforms, show "Linked to [description]" with current value
+        if (builtinType && builtinType !== 'custom') {
             const display = document.createElement('span');
-            display.className = 'uniform-value readonly';
+            display.className = 'uniform-value readonly linked';
+            
+            const description = this.getBuiltinDescription(builtinType);
+            const currentValue = this.formatValueForDisplay(uniformType, defaultValue);
             
             // Special handling for key state uniforms
             if (builtinType === 'keyState') {
                 const uniform = this.uniformManager.getUniform(uniformName);
                 const keyCode = uniform ? uniform.keyCode : null;
                 const keyLabel = keyCode ? this.getKeyDisplayName(keyCode) : 'No key';
-                display.textContent = `${this.formatValueForDisplay(uniformType, defaultValue)} (${keyLabel})`;
+                display.innerHTML = `<em>Linked to ${description}</em><br><small>${currentValue} (${keyLabel})</small>`;
             } else {
-                display.textContent = this.formatValueForDisplay(uniformType, defaultValue);
+                display.innerHTML = `<em>Linked to ${description}</em><br><small>${currentValue}</small>`;
             }
             
             return display;
-        }
-        
-        // For time uniforms, create read-only display (buttons added separately)
-        if (builtinType === 'time') {
-            const display = document.createElement('span');
-            display.className = 'uniform-value readonly';
-            display.textContent = this.formatValueForDisplay(uniformType, defaultValue);
-            return display;
-        }
-
-        // For resolution uniforms, create editable vec2 control
-        if (builtinType === 'resolution') {
-            return this.createVecControl(uniformName, uniformType, defaultValue);
         }
         
         // For custom uniforms, create interactive controls
@@ -1352,3 +1353,4 @@ export class UniformUI {
         return `${ratioW}:${ratioH}`;
     }
 } 
+
