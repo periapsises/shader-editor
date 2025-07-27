@@ -187,3 +187,95 @@ export function initWebGL(canvas) {
     
     return gl;
 } 
+
+/**
+ * Parse WebGL shader error message and extract line information
+ * @param {string} errorMessage - The WebGL shader error message
+ * @param {string} shaderType - The shader type ('vertex' or 'fragment')
+ * @returns {Array} Array of error objects with line, column, and message
+ */
+export function parseShaderErrors(errorMessage, shaderType = 'unknown') {
+    if (!errorMessage) return [];
+
+    const errors = [];
+    const lines = errorMessage.split('\n');
+
+    for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) continue;
+
+        // Different browsers/drivers may have different error formats
+        // Common patterns include:
+        // ERROR: 0:lineNumber: error message
+        // ERROR: lineNumber:columnNumber: error message
+        // 0(lineNumber) : error: error message
+        
+        let match;
+        
+        // Firefox/Chrome pattern: ERROR: 0:lineNumber: message
+        match = trimmedLine.match(/ERROR:\s*\d+:(\d+):\s*(.+)/i);
+        if (match) {
+            errors.push({
+                line: parseInt(match[1]) - 1, // Convert to 0-based line numbering
+                column: 0,
+                message: match[2].trim(),
+                type: 'error',
+                shaderType
+            });
+            continue;
+        }
+
+        // Another common pattern: ERROR: lineNumber:columnNumber: message
+        match = trimmedLine.match(/ERROR:\s*(\d+):(\d+):\s*(.+)/i);
+        if (match) {
+            errors.push({
+                line: parseInt(match[1]) - 1, // Convert to 0-based line numbering
+                column: Math.max(0, parseInt(match[2]) - 1), // Convert to 0-based column numbering
+                message: match[3].trim(),
+                type: 'error',
+                shaderType
+            });
+            continue;
+        }
+
+        // NVIDIA pattern: 0(lineNumber) : error: message
+        match = trimmedLine.match(/\d+\((\d+)\)\s*:\s*(error|warning):\s*(.+)/i);
+        if (match) {
+            errors.push({
+                line: parseInt(match[1]) - 1, // Convert to 0-based line numbering
+                column: 0,
+                message: match[3].trim(),
+                type: match[2].toLowerCase(),
+                shaderType
+            });
+            continue;
+        }
+
+        // Generic pattern for other drivers: try to extract any line number
+        match = trimmedLine.match(/(?:line\s*)?(\d+)[\s:]*(.+)/i);
+        if (match && parseInt(match[1]) > 0) {
+            errors.push({
+                line: parseInt(match[1]) - 1, // Convert to 0-based line numbering
+                column: 0,
+                message: match[2].trim(),
+                type: 'error',
+                shaderType
+            });
+            continue;
+        }
+
+        // If no line number found, add as general error
+        if (trimmedLine.toLowerCase().includes('error') || 
+            trimmedLine.toLowerCase().includes('warning')) {
+            errors.push({
+                line: 0,
+                column: 0,
+                message: trimmedLine,
+                type: 'error',
+                shaderType
+            });
+        }
+    }
+
+    return errors;
+} 

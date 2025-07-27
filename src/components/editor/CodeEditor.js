@@ -343,4 +343,121 @@ void main() {
         });
         this.editors.clear();
     }
+
+    /**
+     * Add error annotations to an editor
+     * @param {string} type - The editor type ('fragment' or 'vertex')
+     * @param {Array} errors - Array of error objects with line, column, message, type
+     */
+    addErrorAnnotations(type, errors) {
+        const editor = this.editors.get(type);
+        if (!editor || !errors || errors.length === 0) return;
+
+        // Clear existing annotations
+        this.clearErrorAnnotations(type);
+
+        const session = editor.getSession();
+        const annotations = [];
+
+        errors.forEach(error => {
+            // Create annotation for ACE editor
+            annotations.push({
+                row: error.line,
+                column: error.column || 0,
+                text: error.message,
+                type: error.type || 'error' // 'error', 'warning', or 'info'
+            });
+
+            // Add error marker to the line (for visual underline effect)
+            const marker = session.addMarker(
+                new ace.Range(error.line, 0, error.line, Number.MAX_VALUE),
+                `ace_error_line ace_${error.type || 'error'}`,
+                'fullLine',
+                false
+            );
+
+            // Store marker ID for cleanup
+            if (!session.$errorMarkers) {
+                session.$errorMarkers = [];
+            }
+            session.$errorMarkers.push(marker);
+        });
+
+        // Set annotations
+        session.setAnnotations(annotations);
+    }
+
+    /**
+     * Clear error annotations from an editor
+     * @param {string} type - The editor type ('fragment' or 'vertex')
+     */
+    clearErrorAnnotations(type) {
+        const editor = this.editors.get(type);
+        if (!editor) return;
+
+        const session = editor.getSession();
+
+        // Clear annotations
+        session.clearAnnotations();
+
+        // Clear error markers
+        if (session.$errorMarkers) {
+            session.$errorMarkers.forEach(markerId => {
+                session.removeMarker(markerId);
+            });
+            session.$errorMarkers = [];
+        }
+    }
+
+    /**
+     * Clear all error annotations from all editors
+     */
+    clearAllErrorAnnotations() {
+        this.editors.forEach((editor, type) => {
+            this.clearErrorAnnotations(type);
+        });
+    }
+
+    /**
+     * Show errors in editors with annotations and underlines
+     * @param {Array} errors - Array of parsed error objects
+     */
+    showErrors(errors) {
+        // Clear all existing annotations
+        this.clearAllErrorAnnotations();
+
+        if (!errors || errors.length === 0) return;
+
+        // Group errors by shader type
+        const errorsByType = {
+            vertex: [],
+            fragment: []
+        };
+
+        errors.forEach(error => {
+            if (error.shaderType === 'vertex') {
+                errorsByType.vertex.push(error);
+            } else if (error.shaderType === 'fragment') {
+                errorsByType.fragment.push(error);
+            }
+        });
+
+        // Add annotations to each editor
+        if (errorsByType.vertex.length > 0) {
+            this.addErrorAnnotations('vertex', errorsByType.vertex);
+        }
+        if (errorsByType.fragment.length > 0) {
+            this.addErrorAnnotations('fragment', errorsByType.fragment);
+        }
+    }
+
+    /**
+     * Get the number of lines in an editor
+     * @param {string} type - The editor type
+     * @returns {number} Number of lines
+     */
+    getLineCount(type) {
+        const editor = this.editors.get(type);
+        return editor ? editor.getSession().getLength() : 0;
+    }
 } 

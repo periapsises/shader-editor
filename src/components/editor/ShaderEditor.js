@@ -88,11 +88,17 @@ export class ShaderEditor {
         // Handle render errors
         document.addEventListener('renderError', (e) => {
             this.components.errorConsole.showError(e.detail.message);
+            
+            // If we have detailed error information, show it in the editor annotations
+            if (e.detail.errors && e.detail.errors.length > 0) {
+                this.components.codeEditor.showErrors(e.detail.errors);
+            }
         });
 
         // Handle render error clearing
         document.addEventListener('renderErrorCleared', () => {
             this.components.errorConsole.hideError();
+            this.components.codeEditor.clearAllErrorAnnotations();
         });
 
         // Handle uniform updates for renderer
@@ -103,6 +109,17 @@ export class ShaderEditor {
         // Handle uniform changes (for recompilation)
         document.addEventListener('uniformsChanged', (e) => {
             this.onUniformsChanged(e.detail);
+        });
+
+        // Handle shader compilation results
+        document.addEventListener('shaderCompiled', (e) => {
+            if (e.detail.success) {
+                // Clear error annotations on successful compilation
+                this.components.codeEditor.clearAllErrorAnnotations();
+            } else if (e.detail.errors) {
+                // Show error annotations if compilation failed with detailed errors
+                this.components.codeEditor.showErrors(e.detail.errors);
+            }
         });
 
         // Handle animation state changes
