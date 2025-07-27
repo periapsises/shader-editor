@@ -50,17 +50,7 @@ export class Controls {
             this.elements.set('saveBtn', saveBtn);
         }
 
-        // Export button
-        const exportBtn = document.getElementById('exportBtn');
-        if (exportBtn) {
-            this.elements.set('exportBtn', exportBtn);
-        }
 
-        // Load button
-        const loadBtn = document.getElementById('loadBtn');
-        if (loadBtn) {
-            this.elements.set('loadBtn', loadBtn);
-        }
 
         // Load input
         const loadInput = document.getElementById('loadInput');
@@ -110,17 +100,7 @@ export class Controls {
             this.elements.set('resetViewBtn', resetViewBtn);
         }
 
-        // Autosave toggle
-        const autosaveToggle = document.getElementById('autosaveToggle');
-        if (autosaveToggle) {
-            this.elements.set('autosaveToggle', autosaveToggle);
-        }
 
-        // Autosave interval selector
-        const autosaveInterval = document.getElementById('autosaveInterval');
-        if (autosaveInterval) {
-            this.elements.set('autosaveInterval', autosaveInterval);
-        }
 
         // Menu buttons
         const fileMenuBtn = document.getElementById('fileMenuBtn');
@@ -133,10 +113,12 @@ export class Controls {
             this.elements.set('toolsMenuBtn', toolsMenuBtn);
         }
 
-        const settingsMenuBtn = document.getElementById('settingsMenuBtn');
-        if (settingsMenuBtn) {
-            this.elements.set('settingsMenuBtn', settingsMenuBtn);
+        const projectsMenuBtn = document.getElementById('projectsMenuBtn');
+        if (projectsMenuBtn) {
+            this.elements.set('projectsMenuBtn', projectsMenuBtn);
         }
+
+
 
         // Menu panels
         const fileMenuPanel = document.getElementById('fileMenuPanel');
@@ -149,10 +131,12 @@ export class Controls {
             this.elements.set('toolsMenuPanel', toolsMenuPanel);
         }
 
-        const settingsMenuPanel = document.getElementById('settingsMenuPanel');
-        if (settingsMenuPanel) {
-            this.elements.set('settingsMenuPanel', settingsMenuPanel);
+        const projectsMenuPanel = document.getElementById('projectsMenuPanel');
+        if (projectsMenuPanel) {
+            this.elements.set('projectsMenuPanel', projectsMenuPanel);
         }
+
+
 
 
 
@@ -205,25 +189,7 @@ export class Controls {
 
         // Note: Old save dropdown functionality removed - now using menu system
 
-        // Export button
-        const exportBtn = this.elements.get('exportBtn');
-        if (exportBtn) {
-            const listener = () => {
-                this.onExportClick();
-            };
-            exportBtn.addEventListener('click', listener);
-            this.eventListeners.set('exportBtn', listener);
-        }
 
-        // Load button
-        const loadBtn = this.elements.get('loadBtn');
-        if (loadBtn) {
-            const listener = () => {
-                this.onLoadClick();
-            };
-            loadBtn.addEventListener('click', listener);
-            this.eventListeners.set('loadBtn', listener);
-        }
 
         // Load input
         const loadInput = this.elements.get('loadInput');
@@ -285,25 +251,7 @@ export class Controls {
             this.eventListeners.set('resetViewBtn', listener);
         }
 
-        // Autosave toggle
-        const autosaveToggle = this.elements.get('autosaveToggle');
-        if (autosaveToggle) {
-            const listener = (e) => {
-                this.onAutosaveToggle(e.target.checked);
-            };
-            autosaveToggle.addEventListener('change', listener);
-            this.eventListeners.set('autosaveToggle', listener);
-        }
 
-        // Autosave interval selector
-        const autosaveInterval = this.elements.get('autosaveInterval');
-        if (autosaveInterval) {
-            const listener = (e) => {
-                this.onAutosaveIntervalChange(parseFloat(e.target.value));
-            };
-            autosaveInterval.addEventListener('change', listener);
-            this.eventListeners.set('autosaveInterval', listener);
-        }
 
         // Menu buttons
         const fileMenuBtn = this.elements.get('fileMenuBtn');
@@ -326,15 +274,17 @@ export class Controls {
             this.eventListeners.set('toolsMenuBtn', listener);
         }
 
-        const settingsMenuBtn = this.elements.get('settingsMenuBtn');
-        if (settingsMenuBtn) {
+        const projectsMenuBtn = this.elements.get('projectsMenuBtn');
+        if (projectsMenuBtn) {
             const listener = (e) => {
                 e.stopPropagation();
-                this.toggleMenu('settings');
+                this.toggleMenu('projects');
             };
-            settingsMenuBtn.addEventListener('click', listener);
-            this.eventListeners.set('settingsMenuBtn', listener);
+            projectsMenuBtn.addEventListener('click', listener);
+            this.eventListeners.set('projectsMenuBtn', listener);
         }
+
+
 
         // Save dropdown items in the new menu
         const fileMenuPanel = this.elements.get('fileMenuPanel');
@@ -350,9 +300,45 @@ export class Controls {
             this.eventListeners.set('fileMenuPanel', listener);
         }
 
+        // Projects menu items
+        const projectsMenuPanel = this.elements.get('projectsMenuPanel');
+        if (projectsMenuPanel) {
+            const listener = (e) => {
+                if (e.target.closest('#saveCurrentBtn')) {
+                    this.onSaveCurrentProject();
+                    this.hideAllMenus();
+                } else if (e.target.closest('#newProjectBtn')) {
+                    this.onNewProject();
+                    this.hideAllMenus();
+                } else if (e.target.closest('#browseProjectsBtn')) {
+                    this.onBrowseProjects();
+                    this.hideAllMenus();
+                }
+            };
+            projectsMenuPanel.addEventListener('click', listener);
+            this.eventListeners.set('projectsMenuPanel', listener);
+        }
 
+        // Autosave controls
+        const autosaveToggle = document.getElementById('autosaveToggle');
+        if (autosaveToggle) {
+            this.elements.set('autosaveToggle', autosaveToggle);
+            const listener = (e) => {
+                this.onAutosaveToggle(e.target.checked);
+            };
+            autosaveToggle.addEventListener('change', listener);
+            this.eventListeners.set('autosaveToggle', listener);
+        }
 
-
+        const autosaveInterval = document.getElementById('autosaveInterval');
+        if (autosaveInterval) {
+            this.elements.set('autosaveInterval', autosaveInterval);
+            const listener = (e) => {
+                this.onAutosaveIntervalChange(parseFloat(e.target.value));
+            };
+            autosaveInterval.addEventListener('change', listener);
+            this.eventListeners.set('autosaveInterval', listener);
+        }
 
         // Close menus when clicking outside
         document.addEventListener('click', (e) => {
@@ -401,22 +387,7 @@ export class Controls {
 
     // Note: Old save dropdown methods removed - now using menu system
 
-    /**
-     * Handle export button click
-     */
-    onExportClick() {
-        this.dispatchEvent('projectExportRequested');
-    }
 
-    /**
-     * Handle load button click
-     */
-    onLoadClick() {
-        const loadInput = this.elements.get('loadInput');
-        if (loadInput) {
-            loadInput.click();
-        }
-    }
 
     /**
      * Handle examples button click
@@ -482,21 +453,7 @@ export class Controls {
         this.dispatchEvent('viewResetRequested');
     }
 
-    /**
-     * Handle autosave toggle change
-     * @param {boolean} enabled - Whether autosave is enabled
-     */
-    onAutosaveToggle(enabled) {
-        this.dispatchEvent('autosaveToggled', { enabled });
-    }
 
-    /**
-     * Handle autosave interval change
-     * @param {number} intervalMinutes - Autosave interval in minutes
-     */
-    onAutosaveIntervalChange(intervalMinutes) {
-        this.dispatchEvent('autosaveIntervalChanged', { intervalMinutes });
-    }
 
     /**
      * Start video recording
@@ -593,45 +550,7 @@ export class Controls {
         }
     }
 
-    /**
-     * Get the autosave state
-     * @returns {boolean} True if autosave is enabled
-     */
-    isAutosaveEnabled() {
-        const checkbox = this.elements.get('autosaveToggle');
-        return checkbox ? checkbox.checked : false;
-    }
 
-    /**
-     * Set the autosave state
-     * @param {boolean} enabled - Whether to enable autosave
-     */
-    setAutosaveEnabled(enabled) {
-        const checkbox = this.elements.get('autosaveToggle');
-        if (checkbox) {
-            checkbox.checked = enabled;
-        }
-    }
-
-    /**
-     * Get the autosave interval
-     * @returns {number} Autosave interval in minutes
-     */
-    getAutosaveInterval() {
-        const select = this.elements.get('autosaveInterval');
-        return select ? parseFloat(select.value) : 1;
-    }
-
-    /**
-     * Set the autosave interval
-     * @param {number} intervalMinutes - Autosave interval in minutes
-     */
-    setAutosaveInterval(intervalMinutes) {
-        const select = this.elements.get('autosaveInterval');
-        if (select) {
-            select.value = intervalMinutes.toString();
-        }
-    }
 
     /**
      * Enable or disable a control
@@ -701,7 +620,7 @@ export class Controls {
      * Hide all menus
      */
     hideAllMenus() {
-        const menus = ['file', 'tools', 'settings'];
+        const menus = ['file', 'tools', 'settings', 'projects'];
         
         menus.forEach(menuName => {
             const panel = this.elements.get(`${menuName}MenuPanel`);
@@ -719,6 +638,43 @@ export class Controls {
 
 
 
+
+    /**
+     * Handle save current project click
+     */
+    onSaveCurrentProject() {
+        this.dispatchEvent('projectSaveRequested');
+    }
+
+    /**
+     * Handle new project click
+     */
+    onNewProject() {
+        this.dispatchEvent('projectNewRequested');
+    }
+
+    /**
+     * Handle browse projects click
+     */
+    onBrowseProjects() {
+        this.dispatchEvent('projectBrowseRequested');
+    }
+
+    /**
+     * Handle autosave toggle change
+     * @param {boolean} enabled - Whether autosave is enabled
+     */
+    onAutosaveToggle(enabled) {
+        this.dispatchEvent('autosaveToggled', { enabled });
+    }
+
+    /**
+     * Handle autosave interval change
+     * @param {number} intervalMinutes - Autosave interval in minutes
+     */
+    onAutosaveIntervalChange(intervalMinutes) {
+        this.dispatchEvent('autosaveIntervalChanged', { intervalMinutes });
+    }
 
     /**
      * Dispatch a custom event

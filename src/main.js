@@ -6,13 +6,15 @@
 import { ShaderEditor } from './components/editor/ShaderEditor.js';
 
 // Initialize the shader editor when the page loads
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Create the main shader editor instance
         const shaderEditor = new ShaderEditor();
         
         // Make it globally accessible for debugging
         window.shaderEditor = shaderEditor;
+        
+        console.log('Shader Editor initialized successfully');
     } catch (error) {
         console.error('Failed to initialize Shader Editor:', error);
         

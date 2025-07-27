@@ -115,6 +115,12 @@ export class CanvasSettings {
         this.settings[key] = value;
         this.applySettings();
         this.saveSettings();
+        
+        // Dispatch canvasSettingsChanged event for autosave
+        const event = new CustomEvent('canvasSettingsChanged', {
+            detail: { setting: key, value: value }
+        });
+        document.dispatchEvent(event);
     }
 
     /**
@@ -339,6 +345,33 @@ export class CanvasSettings {
      */
     getSettings() {
         return { ...this.settings };
+    }
+
+    /**
+     * Export settings for saving
+     * @returns {Object} Exportable settings
+     */
+    exportSettings() {
+        return {
+            ...this.settings,
+            animation: { ...this.animationState }
+        };
+    }
+
+    /**
+     * Import settings from saved data
+     * @param {Object} data - Settings data to import
+     */
+    importSettings(data) {
+        if (data) {
+            this.settings = { ...this.settings, ...data };
+            if (data.animation) {
+                this.animationState = { ...this.animationState, ...data.animation };
+            }
+            this.applySettings();
+            this.updateUI();
+            this.updateAnimationUI();
+        }
     }
 
     /**

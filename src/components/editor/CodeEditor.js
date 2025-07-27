@@ -175,6 +175,15 @@ void main() {
     }
 
     /**
+     * Get shader code (alias for getShaderContent)
+     * @param {string} type - The editor type
+     * @returns {string} The shader content
+     */
+    getShaderCode(type) {
+        return this.getShaderContent(type);
+    }
+
+    /**
      * Set shader content in an editor
      * @param {string} type - The editor type ('fragment' or 'vertex')
      * @param {string} content - The shader content
@@ -184,6 +193,15 @@ void main() {
         if (editor) {
             editor.setValue(content, -1);
         }
+    }
+
+    /**
+     * Set shader code (alias for setShaderContent)
+     * @param {string} type - The editor type ('fragment' or 'vertex')
+     * @param {string} content - The shader content
+     */
+    setShaderCode(type, content) {
+        this.setShaderContent(type, content);
     }
 
     /**
@@ -251,6 +269,7 @@ void main() {
      * @param {string} type - The editor type that changed
      */
     dispatchContentChange(type) {
+        // Dispatch shaderChanged event for compilation
         const event = new CustomEvent('shaderChanged', {
             detail: { 
                 type, 
@@ -258,6 +277,12 @@ void main() {
             }
         });
         document.dispatchEvent(event);
+        
+        // Dispatch codeChanged event for autosave
+        const codeEvent = new CustomEvent('codeChanged', {
+            detail: { type }
+        });
+        document.dispatchEvent(codeEvent);
     }
 
     /**

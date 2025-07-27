@@ -10,4 +10,8 @@
 @import './components/editor.css';
 @import './components/preview.css';
 @import './components/uniforms.css';
-@import './components/examples.css'; 
+@import './components/examples.css';
+@import './components/project-browser.css';
+@import './components/project-name-dialog.css';
+@import './components/notification.css';
+@import './components/unsaved-changes-dialog.css'; 

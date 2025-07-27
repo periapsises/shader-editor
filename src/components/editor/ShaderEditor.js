@@ -1,345 +1,175 @@
 import { CodeEditor } from './CodeEditor.js';
+import { WebGLRenderer } from '../preview/WebGLRenderer.js';
+import { UniformManager } from '../uniforms/UniformManager.js';
+import { UniformUI } from '../uniforms/UniformUI.js';
+import { PanelManager } from '../ui/PanelManager.js';
 import { TabManager } from '../ui/TabManager.js';
 import { Controls } from '../ui/Controls.js';
 import { ErrorConsole } from '../ui/ErrorConsole.js';
 import { ExampleBrowser } from '../ui/ExampleBrowser.js';
-import { PanelManager } from '../ui/PanelManager.js';
 import { CanvasSettings } from '../ui/CanvasSettings.js';
-import { WebGLRenderer } from '../preview/WebGLRenderer.js';
-import { UniformManager } from '../uniforms/UniformManager.js';
+import { ProjectManager } from '../project/ProjectManager.js';
+import { ProjectBrowser } from '../ui/ProjectBrowser.js';
+import { ProjectNameDialog } from '../ui/ProjectNameDialog.js';
+import { Notification } from '../ui/Notification.js';
+import { UnsavedChangesDialog } from '../ui/UnsavedChangesDialog.js';
 import { DEFAULT_SETTINGS } from '../../config/settings.js';
 
 /**
- * Main ShaderEditor class that coordinates all components
+ * Main shader editor class that orchestrates all components
  */
 export class ShaderEditor {
     constructor() {
         this.components = {};
-        this.settings = DEFAULT_SETTINGS;
-        this.mediaRecorder = null;
-        this.recordedChunks = [];
+        this.projectManager = null;
+        this.currentProjectId = null;
+        
+        // Autosave properties
         this.autosaveTimer = null;
-        this.autosaveKey = 'shader_editor_autosave';
+        this.autosaveInterval = 2 * 60 * 1000; // 2 minutes default
         this.lastAutosaveHash = null;
+        this.lastChangeTime = Date.now();
+        this._hasUnsavedChanges = false;
+        
+        // Recent projects properties
+        this.recentProjectPrefix = 'recent_';
+        this.maxRecentProjects = 10;
+        this.recentProjectExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
+        
         this.init();
     }
 
     /**
      * Initialize the shader editor
      */
-    init() {
-        this.initializeComponents();
-        this.setupEventListeners();
-        this.compileInitialShaders();
-        this.initializeAutosave();
-    }
-
-    /**
-     * Initialize all components
-     */
-    initializeComponents() {
+    async init() {
         try {
-            // Initialize UI components
-            this.components.errorConsole = new ErrorConsole();
-            this.components.tabManager = new TabManager();
-            this.components.controls = new Controls();
-            this.components.exampleBrowser = new ExampleBrowser();
-            this.components.panelManager = new PanelManager();
-            
-            // Initialize editor components
+            // Initialize project manager first
+            this.projectManager = new ProjectManager();
+            await this.projectManager.initialize();
+
+            // Initialize components
+            this.components.renderer = new WebGLRenderer('glCanvas');
             this.components.codeEditor = new CodeEditor();
             this.components.uniformManager = new UniformManager();
-            
-            // Initialize WebGL renderer
-            this.components.renderer = new WebGLRenderer('glCanvas');
+            this.components.uniformUI = new UniformUI(this.components.uniformManager);
+            this.components.panelManager = new PanelManager();
+            this.components.tabManager = new TabManager();
+            this.components.controls = new Controls();
+            this.components.errorConsole = new ErrorConsole();
+            this.components.exampleBrowser = new ExampleBrowser();
             
             // Initialize canvas settings (after renderer)
             this.components.canvasSettings = new CanvasSettings(this.components.renderer);
+            
+            // Initialize project browser (after initialization)
+            this.components.projectBrowser = new ProjectBrowser(this);
+            
+            // Initialize UI components
+            this.components.projectNameDialog = new ProjectNameDialog();
+            this.components.notification = new Notification();
+            this.components.unsavedChangesDialog = new UnsavedChangesDialog();
+
+            // Setup event listeners
+            this.setupEventListeners();
+            
+            // Start autosave
+            this.startAutosave();
+            
+            // Compile initial shaders
+            setTimeout(() => {
+                this.compileShaders();
+            }, 100);
+            
         } catch (error) {
             console.error('Failed to initialize components:', error);
-            this.components.errorConsole?.showError('Failed to initialize shader editor: ' + error.message);
         }
     }
 
     /**
-     * Setup event listeners for inter-component communication
+     * Setup event listeners
      */
     setupEventListeners() {
-        // Handle shader compilation requests
-        document.addEventListener('compileRequested', () => {
-            this.compileShaders();
-        });
-
-        // Handle shader resets
-        document.addEventListener('resetRequested', () => {
-            this.resetShaders();
-        });
-
-        // Handle auto-compile changes
-        document.addEventListener('autoCompileChanged', (e) => {
-            this.onAutoCompileChanged(e.detail.enabled);
-        });
-
-        // Handle shader changes from editors
-        document.addEventListener('shaderChanged', (e) => {
-            this.onShaderChanged(e.detail);
-        });
-
-        // Handle render errors
+        // Shader compilation events
         document.addEventListener('renderError', (e) => {
-            this.components.errorConsole.showError(e.detail.message);
-            
-            // If we have detailed error information, show it in the editor annotations
-            if (e.detail.errors && e.detail.errors.length > 0) {
-                this.components.codeEditor.showErrors(e.detail.errors);
-            }
+            this.components.codeEditor.showErrors(e.detail.errors);
         });
 
-        // Handle render error clearing
         document.addEventListener('renderErrorCleared', () => {
-            this.components.errorConsole.hideError();
             this.components.codeEditor.clearAllErrorAnnotations();
         });
 
-        // Handle uniform updates for renderer
-        document.addEventListener('uniformsUpdate', (e) => {
-            this.updateRendererUniforms(e.detail);
-        });
-
-        // Handle uniform changes (for recompilation)
-        document.addEventListener('uniformsChanged', (e) => {
-            this.onUniformsChanged(e.detail);
-        });
-
-        // Handle shader compilation results
         document.addEventListener('shaderCompiled', (e) => {
             if (e.detail.success) {
-                // Clear error annotations on successful compilation
                 this.components.codeEditor.clearAllErrorAnnotations();
-            } else if (e.detail.errors) {
-                // Show error annotations if compilation failed with detailed errors
+            } else {
                 this.components.codeEditor.showErrors(e.detail.errors);
             }
         });
 
-        // Handle animation state changes
-        document.addEventListener('animationStateChanged', (e) => {
-            this.onAnimationStateChanged(e.detail);
+        // Project events
+        document.addEventListener('projectSaveRequested', () => {
+            this.saveCurrentProject();
         });
 
-        // Handle animation reset from time buttons
-        document.addEventListener('animationReset', (e) => {
-            this.onAnimationReset(e.detail);
+        document.addEventListener('projectLoadRequested', () => {
+            this.loadProject();
         });
 
-        // Handle tab changes
-        document.addEventListener('tabChanged', (e) => {
-            this.onTabChanged(e.detail);
+        document.addEventListener('projectNewRequested', () => {
+            this.createNewProject();
         });
 
-        // Handle save/load requests
-        document.addEventListener('shaderSaveRequested', (e) => {
-            this.saveShaderCode(e.detail.saveType);
+        document.addEventListener('projectBrowseRequested', () => {
+            this.components.projectBrowser.show();
         });
 
-        document.addEventListener('projectExportRequested', () => {
-            this.exportProject();
+        // Shader compilation events
+        document.addEventListener('shaderChanged', (e) => {
+            this.compileShaders();
         });
 
-        document.addEventListener('loadRequested', (e) => {
-            this.loadProject(e.detail.data);
+        document.addEventListener('uniformsChanged', (e) => {
+            this.updateRendererUniforms(e.detail);
         });
 
-        // Handle examples browser requests
-        document.addEventListener('examplesRequested', () => {
-            this.components.exampleBrowser.show();
+        // Code change events for autosave
+        document.addEventListener('codeChanged', () => {
+            this.markAsChanged();
         });
 
-        document.addEventListener('loadExampleShader', (e) => {
-            this.loadExampleShader(e.detail);
+        document.addEventListener('uniformChanged', () => {
+            this.markAsChanged();
         });
 
-        document.addEventListener('createExampleUniform', (e) => {
-            this.createExampleUniform(e.detail);
+        document.addEventListener('canvasSettingsChanged', () => {
+            this.markAsChanged();
         });
 
-        // Handle canvas resize requests from uniforms
-        document.addEventListener('canvasResizeRequested', (e) => {
-            this.resizeCanvas(e.detail.width, e.detail.height);
-        });
-
-        // Handle capture requests
-        document.addEventListener('screenshotRequested', () => {
-            this.takeScreenshot();
-        });
-
-        document.addEventListener('recordingStarted', (e) => {
-            this.startRecording(e.detail.duration);
-        });
-
-        document.addEventListener('recordingStopped', () => {
-            this.stopRecording();
-        });
-
-        // Handle pan/zoom control events
-        document.addEventListener('panZoomToggled', (e) => {
-            this.onPanZoomToggled(e.detail);
-        });
-
-        document.addEventListener('viewResetRequested', () => {
-            this.onViewResetRequested();
-        });
-
-        // Handle autosave events
+        // Autosave settings events
         document.addEventListener('autosaveToggled', (e) => {
-            this.onAutosaveToggled(e.detail.enabled);
+            if (e.detail.enabled) {
+                this.startAutosave();
+            } else {
+                this.stopAutosave();
+            }
         });
 
         document.addEventListener('autosaveIntervalChanged', (e) => {
-            this.onAutosaveIntervalChanged(e.detail.intervalMinutes);
+            this.autosaveInterval = e.detail.intervalMinutes * 60 * 1000;
+            this.restartAutosave();
         });
-
-
     }
 
     /**
      * Compile shaders
      */
     compileShaders() {
-        const vertexSource = this.components.codeEditor.getShaderContent('vertex');
-        const fragmentSource = this.components.codeEditor.getShaderContent('fragment');
+        const vertexSource = this.components.codeEditor.getShaderCode('vertex');
+        const fragmentSource = this.components.codeEditor.getShaderCode('fragment');
         
         if (vertexSource && fragmentSource) {
             this.components.renderer.compileShaders(vertexSource, fragmentSource);
-        }
-    }
-
-    /**
-     * Compile initial shaders after component initialization
-     */
-    compileInitialShaders() {
-        // Wait a bit for all components to be ready
-        setTimeout(() => {
-            this.compileShaders();
-            // Ensure UI button states are synchronized with renderer state
-            this.syncUIWithRendererState();
-
-        }, 100);
-    }
-
-    /**
-     * Initialize autosave functionality
-     */
-    async initializeAutosave() {
-        // Set initial autosave settings from controls
-        if (this.components.controls) {
-            this.settings.autosave.enabled = this.components.controls.isAutosaveEnabled();
-            this.settings.autosave.intervalMinutes = this.components.controls.getAutosaveInterval();
-        }
-
-        // Check for existing autosave data and offer to restore
-        if (this.hasAutosaveData()) {
-            await this.offerAutosaveRestore();
-        }
-
-        // Start autosave if enabled
-        if (this.settings.autosave.enabled) {
-            this.startAutosave();
-        }
-    }
-
-    /**
-     * Offer to restore from autosave data
-     */
-    async offerAutosaveRestore() {
-        try {
-            const autosaveDataString = localStorage.getItem(this.autosaveKey);
-            if (!autosaveDataString) return;
-
-            const autosaveData = JSON.parse(autosaveDataString);
-            const autosaveDate = new Date(autosaveData.timestamp);
-            const timeAgo = this.getTimeAgo(autosaveDate);
-
-            const restore = confirm(
-                `Autosaved data found from ${timeAgo}.\n\nWould you like to restore your previous work?`
-            );
-
-            if (restore) {
-                const success = await this.restoreFromAutosave();
-                if (success) {
-                    this.showAutosaveNotification('Restored from autosave');
-                }
-            } else {
-                // If user doesn't want to restore, clear the autosave data
-                this.clearAutosaveData();
-            }
-        } catch (error) {
-            console.error('Error offering autosave restore:', error);
-        }
-    }
-
-    /**
-     * Get human-readable time ago string
-     * @param {Date} date - The date to compare
-     * @returns {string} Human-readable time ago
-     */
-    getTimeAgo(date) {
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / (1000 * 60));
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        if (diffMins < 1) return 'just now';
-        if (diffMins === 1) return '1 minute ago';
-        if (diffMins < 60) return `${diffMins} minutes ago`;
-        if (diffHours === 1) return '1 hour ago';
-        if (diffHours < 24) return `${diffHours} hours ago`;
-        if (diffDays === 1) return '1 day ago';
-        return `${diffDays} days ago`;
-    }
-
-    /**
-     * Synchronize UI state with renderer state
-     */
-    syncUIWithRendererState() {
-        if (this.components.renderer && this.components.uniformManager) {
-            const animationState = this.components.renderer.getAnimationState();
-            this.components.uniformManager.uniformUI.updateTimeButtons(animationState.playing);
-        }
-        
-        if (this.components.renderer && this.components.controls) {
-            const viewState = this.components.renderer.getViewState();
-            this.components.controls.setPanZoomEnabled(viewState.enabled);
-        }
-    }
-
-    /**
-     * Reset shaders to default
-     */
-    resetShaders() {
-        this.components.codeEditor.resetToDefaults();
-        this.components.uniformManager.resetUniforms();
-        this.components.errorConsole.clearError();
-    }
-
-    /**
-     * Handle auto-compile changes
-     * @param {boolean} enabled - Whether auto-compile is enabled
-     */
-    onAutoCompileChanged(enabled) {
-        // Update editor debounce behavior if needed
-    }
-
-    /**
-     * Handle shader changes
-     * @param {Object} detail - Shader change details
-     */
-    onShaderChanged(detail) {
-        
-        // Auto-compile when shader content changes
-        if (this.components.controls.isAutoCompileEnabled()) {
-            this.compileShaders();
         }
     }
 
@@ -349,698 +179,28 @@ export class ShaderEditor {
      */
     updateRendererUniforms(detail) {
         this.components.renderer.setUniforms(detail.uniforms, detail.builtinAssociations);
-        
-        // Update autocomplete with current uniforms
-        this.updateAutocompleteUniforms();
     }
 
     /**
-     * Handle uniform changes
-     * @param {Object} detail - Uniform change details
+     * Mark that there are unsaved changes
      */
-    onUniformsChanged(detail) {
-        // Update autocomplete with current uniforms
-        this.updateAutocompleteUniforms();
-        
-        // Recompile if auto-compile is enabled
-        if (this.components.controls.isAutoCompileEnabled()) {
-            this.compileShaders();
-        }
+    markAsChanged() {
+        this._hasUnsavedChanges = true;
+        this.lastChangeTime = Date.now();
     }
 
     /**
-     * Update autocomplete with current uniforms
-     */
-    updateAutocompleteUniforms() {
-        if (this.components.codeEditor && this.components.uniformManager) {
-            const uniforms = [];
-            
-            // Convert uniform map to array format expected by CodeEditor
-            for (const [name, uniform] of this.components.uniformManager.uniforms) {
-                uniforms.push({
-                    name: name,
-                    type: uniform.type,
-                    builtin: this.components.uniformManager.builtinAssociations.get(name) || 'custom',
-                    description: this.getUniformDescription(name, uniform)
-                });
-            }
-            
-            this.components.codeEditor.updateUniformCompletions(uniforms);
-        }
-    }
-
-    /**
-     * Get description for a uniform
-     * @param {string} name - Uniform name
-     * @param {Object} uniform - Uniform object
-     * @returns {string} Description string
-     */
-    getUniformDescription(name, uniform) {
-        const builtin = this.components.uniformManager.builtinAssociations.get(name);
-        
-        if (builtin && builtin !== 'custom') {
-            switch (builtin) {
-                case 'time': return 'Current animation time in seconds';
-                case 'resolution': return 'Canvas resolution in pixels';
-                case 'mouse': return 'Mouse position in screen coordinates';
-                case 'lastFrame': return 'Previous frame texture for feedback effects';
-                default: return `Built-in uniform: ${builtin}`;
-            }
-        }
-        
-        return `User-defined uniform of type ${uniform.type}`;
-    }
-
-    /**
-     * Handle animation state changes
-     * @param {Object} detail - Animation state details
-     */
-    onAnimationStateChanged(detail) {
-        // Update time uniform UI buttons
-        this.components.uniformManager.uniformUI.updateTimeButtons(detail.playing);
-    }
-
-    /**
-     * Handle animation reset
-     * @param {Object} detail - Animation reset details
-     */
-    onAnimationReset(detail) {
-        // Animation reset is handled by the WebGLRenderer
-        // This is just for any additional UI updates if needed
-    }
-
-    /**
-     * Handle pan/zoom toggle
-     * @param {Object} detail - Pan/zoom toggle details
-     */
-    onPanZoomToggled(detail) {
-        if (this.components.renderer) {
-            this.components.renderer.setPanZoomEnabled(detail.enabled);
-        }
-    }
-
-    /**
-     * Handle view reset request
-     */
-    onViewResetRequested() {
-        if (this.components.renderer) {
-            this.components.renderer.resetView();
-        }
-    }
-
-
-
-    /**
-     * Handle autosave toggle event
-     * @param {boolean} enabled - Whether autosave is enabled
-     */
-    onAutosaveToggled(enabled) {
-        this.settings.autosave.enabled = enabled;
-        if (enabled) {
-            this.startAutosave();
-        } else {
-            this.stopAutosave();
-        }
-    }
-
-    /**
-     * Handle autosave interval change event
-     * @param {number} intervalMinutes - New autosave interval in minutes
-     */
-    onAutosaveIntervalChanged(intervalMinutes) {
-        this.settings.autosave.intervalMinutes = intervalMinutes;
-        if (this.settings.autosave.enabled) {
-            this.stopAutosave();
-            this.startAutosave();
-        }
-    }
-
-    /**
-     * Handle tab changes
-     * @param {Object} detail - Tab change details
-     */
-    onTabChanged(detail) {
-        // Focus the editor for the active tab
-        this.components.codeEditor.focusEditor(detail.shaderType);
-    }
-
-    /**
-     * Get current shader content
-     * @returns {Object} Object with vertex and fragment shader content
-     */
-    getShaderContent() {
-        return {
-            vertex: this.components.codeEditor.getShaderContent('vertex'),
-            fragment: this.components.codeEditor.getShaderContent('fragment')
-        };
-    }
-
-    /**
-     * Set shader content
-     * @param {string} type - Shader type ('vertex' or 'fragment')
-     * @param {string} content - Shader content
-     */
-    setShaderContent(type, content) {
-        this.components.codeEditor.setShaderContent(type, content);
-    }
-
-    /**
-     * Get renderer state
-     * @returns {Object} Renderer state information
-     */
-    getRendererState() {
-        return {
-            animation: this.components.renderer.getAnimationState(),
-            mousePosition: this.components.renderer.getMousePosition(),
-            view: this.components.renderer.getViewState()
-        };
-    }
-
-    /**
-     * Get uniform manager
-     * @returns {UniformManager} The uniform manager instance
-     */
-    getUniformManager() {
-        return this.components.uniformManager;
-    }
-
-    /**
-     * Get panel manager
-     * @returns {PanelManager} The panel manager instance
-     */
-    getPanelManager() {
-        return this.components.panelManager;
-    }
-
-    /**
-     * Export editor state
-     * @returns {Object} Exportable editor state
-     */
-    exportState() {
-        return {
-            shaders: this.getShaderContent(),
-            uniforms: this.components.uniformManager.exportUniforms(),
-            settings: this.settings,
-            canvas: {
-                width: this.settings.canvas.width,
-                height: this.settings.canvas.height
-            },
-            rendererState: this.getRendererState()
-        };
-    }
-
-    /**
-     * Import editor state
-     * @param {Object} state - Editor state to import
-     */
-    importState(state) {
-        if (state.shaders) {
-            if (state.shaders.vertex) {
-                this.setShaderContent('vertex', state.shaders.vertex);
-            }
-            if (state.shaders.fragment) {
-                this.setShaderContent('fragment', state.shaders.fragment);
-            }
-        }
-
-        if (state.uniforms) {
-            this.components.uniformManager.importUniforms(state.uniforms);
-        }
-
-        // Import canvas resolution
-        if (state.canvas && state.canvas.width && state.canvas.height) {
-            this.resizeCanvas(state.canvas.width, state.canvas.height);
-        }
-
-        // Recompile after importing
-        setTimeout(() => {
-            this.compileShaders();
-        }, 100);
-    }
-
-    /**
-     * Save shader code to file with file dialog
-     * @param {string} saveType - Type of save: 'combined', 'fragment', or 'vertex'
-     */
-    async saveShaderCode(saveType = 'combined') {
-        try {
-            const fragmentShader = this.components.codeEditor.getShaderContent('fragment');
-            const vertexShader = this.components.codeEditor.getShaderContent('vertex');
-            
-            let shaderContent;
-            let fileName;
-            let fileExtension;
-
-            switch (saveType) {
-                case 'fragment':
-                    shaderContent = fragmentShader;
-                    fileName = `fragment-shader-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`;
-                    fileExtension = '.frag';
-                    break;
-                case 'vertex':
-                    shaderContent = vertexShader;
-                    fileName = `vertex-shader-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`;
-                    fileExtension = '.vert';
-                    break;
-                case 'combined':
-                default:
-                    shaderContent = `// Fragment Shader
-${fragmentShader}
-
-// Vertex Shader
-${vertexShader}`;
-                    fileName = `shader-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`;
-                    fileExtension = '.glsl';
-                    break;
-            }
-
-            // Try to use File System Access API for modern browsers
-            if ('showSaveFilePicker' in window) {
-                try {
-                    const fileHandle = await window.showSaveFilePicker({
-                        suggestedName: fileName + fileExtension,
-                        types: [{
-                            description: 'GLSL Shader files',
-                            accept: {
-                                'text/plain': ['.glsl', '.frag', '.vert', '.txt']
-                            }
-                        }]
-                    });
-
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(shaderContent);
-                    await writable.close();
-                    
-                    return;
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        return; // User cancelled
-                    }
-                    throw error;
-                }
-            }
-
-            // Fallback to download for older browsers
-            const dataBlob = new Blob([shaderContent], { type: 'text/plain' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = fileName + fileExtension;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-            
-        } catch (error) {
-            console.error('Failed to save shader code:', error);
-            alert('Failed to save shader code: ' + error.message);
-        }
-    }
-
-    /**
-     * Export complete project to file
-     */
-    async exportProject() {
-        try {
-            const projectData = {
-                version: "1.0",
-                timestamp: new Date().toISOString(),
-                shaders: {
-                    vertex: this.components.codeEditor.getShaderContent('vertex'),
-                    fragment: this.components.codeEditor.getShaderContent('fragment')
-                },
-                uniforms: await this.components.uniformManager.exportUniforms(),
-                settings: {
-                    autoCompile: this.components.controls.isAutoCompileEnabled(),
-                    panZoom: this.components.controls.isPanZoomEnabled()
-                },
-                canvas: {
-                    width: this.settings.canvas.width,
-                    height: this.settings.canvas.height
-                },
-                view: this.components.renderer ? this.components.renderer.getViewState() : null
-            };
-
-            const dataStr = JSON.stringify(projectData, null, 2);
-            const fileName = `shader-project-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
-
-            // Try to use File System Access API for modern browsers
-            if ('showSaveFilePicker' in window) {
-                try {
-                    const fileHandle = await window.showSaveFilePicker({
-                        suggestedName: fileName,
-                        types: [{
-                            description: 'Shader Project files',
-                            accept: {
-                                'application/json': ['.json']
-                            }
-                        }]
-                    });
-
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(dataStr);
-                    await writable.close();
-                    
-                    return;
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        return; // User cancelled
-                    }
-                    throw error;
-                }
-            }
-
-            // Fallback to download for older browsers
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-            
-        } catch (error) {
-            console.error('Failed to export project:', error);
-            alert('Failed to export project: ' + error.message);
-        }
-    }
-
-    /**
-     * Load project from data
-     * @param {Object} data - Project data to load
-     */
-    async loadProject(data) {
-        try {
-            if (!data.version) {
-                throw new Error('Invalid project file format');
-            }
-
-            // Load shaders
-            if (data.shaders) {
-                if (data.shaders.vertex) {
-                    this.setShaderContent('vertex', data.shaders.vertex);
-                }
-                if (data.shaders.fragment) {
-                    this.setShaderContent('fragment', data.shaders.fragment);
-                }
-            }
-
-            // Load uniforms (async due to texture restoration)
-            if (data.uniforms) {
-                await this.components.uniformManager.importUniforms(data.uniforms);
-            }
-
-            // Load settings
-            if (data.settings) {
-                if (data.settings.autoCompile !== undefined) {
-                    this.components.controls.setAutoCompileEnabled(data.settings.autoCompile);
-                }
-                if (data.settings.panZoom !== undefined) {
-                    this.components.controls.setPanZoomEnabled(data.settings.panZoom);
-                    this.components.renderer.setPanZoomEnabled(data.settings.panZoom);
-                }
-            }
-
-            // Load canvas resolution
-            if (data.canvas && data.canvas.width && data.canvas.height) {
-                this.resizeCanvas(data.canvas.width, data.canvas.height);
-            }
-
-            // Restore view state
-            if (data.view && this.components.renderer) {
-                if (data.view.offset) {
-                    this.components.renderer.viewOffset = { ...data.view.offset };
-                }
-                if (data.view.zoom !== undefined) {
-                    this.components.renderer.viewZoom = data.view.zoom;
-                }
-                // Update the transform after restoring view state
-                if (this.components.renderer.updateCanvasTransform) {
-                    this.components.renderer.updateCanvasTransform();
-                }
-            }
-
-            // Recompile after loading
-            setTimeout(() => {
-                this.compileShaders();
-            }, 100);
-
-        } catch (error) {
-            console.error('Failed to load project:', error);
-            alert('Failed to load project: ' + error.message);
-        }
-    }
-
-    /**
-     * Load an example shader
-     * @param {Object} detail - Example shader details
-     */
-    loadExampleShader(detail) {
-        try {
-            // Set the shader content in the editor
-            this.setShaderContent(detail.type, detail.content);
-            
-            // Switch to the appropriate tab
-            this.components.tabManager.switchToTab(detail.type);
-            
-            // Compile the shaders after a short delay
-            setTimeout(() => {
-                this.compileShaders();
-            }, 100);
-            
-        } catch (error) {
-            console.error('Failed to load example shader:', error);
-            alert('Failed to load example shader: ' + error.message);
-        }
-    }
-
-    /**
-     * Create a uniform required by an example
-     * @param {Object} uniformSpec - Uniform specification
-     */
-    createExampleUniform(uniformSpec) {
-        try {
-            // Check if uniform already exists
-            if (this.components.uniformManager.uniforms.has(uniformSpec.name)) {
-                return;
-            }
-
-            // Create the uniform
-            const defaultValue = this.getDefaultValueForType(uniformSpec.type);
-            const uniformData = {
-                type: uniformSpec.type,
-                value: defaultValue,
-                default: false
-            };
-            
-            // Add keyCode for keyState uniforms
-            if (uniformSpec.builtin === 'keyState' && uniformSpec.keyCode) {
-                uniformData.keyCode = uniformSpec.keyCode;
-            }
-            
-            this.components.uniformManager.uniforms.set(uniformSpec.name, uniformData);
-
-            // Set builtin association if specified
-            if (uniformSpec.builtin) {
-                this.components.uniformManager.builtinAssociations.set(uniformSpec.name, uniformSpec.builtin);
-            }
-
-            // Create UI for the uniform
-            this.components.uniformManager.uniformUI.createUniformUI(
-                uniformSpec.name,
-                uniformSpec.type,
-                defaultValue,
-                false
-            );
-
-            // Refresh placeholder position
-            this.components.uniformManager.refreshPlaceholder();
-
-            // Notify about uniform change
-            this.components.uniformManager.dispatchUniformsChanged();
-
-        } catch (error) {
-            console.error('Failed to create example uniform:', error);
-        }
-    }
-
-    /**
-     * Get default value for a uniform type
-     * @param {string} type - The uniform type
-     * @returns {*} The default value
-     */
-    getDefaultValueForType(type) {
-        switch (type) {
-            case 'float': return 0.0;
-            case 'int': return 0;
-            case 'bool': return false;
-            case 'vec2': return [0.0, 0.0];
-            case 'vec3': return [0.0, 0.0, 0.0];
-            case 'vec4': return [0.0, 0.0, 0.0, 1.0];
-            case 'texture': return { file: null, filter: 'linear', texture: null };
-            default: return 0.0;
-        }
-    }
-
-    /**
-     * Resize the canvas and update settings
-     * @param {number} width - New width
-     * @param {number} height - New height
-     */
-    resizeCanvas(width, height) {
-        try {
-            // Validate dimensions
-            width = Math.max(1, Math.min(4096, Math.round(width)));
-            height = Math.max(1, Math.min(4096, Math.round(height)));
-
-            // Update settings
-            this.settings.canvas.width = width;
-            this.settings.canvas.height = height;
-
-            // Resize the renderer
-            this.components.renderer.resize(width, height);
-
-        } catch (error) {
-            console.error('Failed to resize canvas:', error);
-            alert('Failed to resize canvas: ' + error.message);
-        }
-    }
-
-    /**
-     * Take a screenshot of the current render
-     */
-    takeScreenshot() {
-        try {
-            const canvas = this.components.renderer.canvas;
-            const dataURL = canvas.toDataURL('image/png');
-            
-            const link = document.createElement('a');
-            link.href = dataURL;
-            link.download = `shader-screenshot-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-        } catch (error) {
-            console.error('Failed to take screenshot:', error);
-            alert('Failed to take screenshot: ' + error.message);
-        }
-    }
-
-    /**
-     * Start recording video
-     * @param {number} duration - Duration in seconds
-     */
-    startRecording(duration) {
-        try {
-            // Reset animation time to start recording from the beginning
-            this.components.renderer.resetAnimation();
-            
-            const canvas = this.components.renderer.canvas;
-            const stream = canvas.captureStream(30); // 30 FPS
-            
-            this.mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'video/webm;codecs=vp9'
-            });
-            
-            this.recordedChunks = [];
-            
-            this.mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    this.recordedChunks.push(event.data);
-                }
-            };
-            
-            this.mediaRecorder.onstop = () => {
-                const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `shader-recording-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                URL.revokeObjectURL(url);
-                this.components.controls.setRecordingState(false);
-            };
-            
-            this.mediaRecorder.start();
-            this.components.controls.setRecordingState(true);
-            
-            // Auto-stop after specified duration
-            setTimeout(() => {
-                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                    this.stopRecording();
-                }
-            }, duration * 1000);
-            
-        } catch (error) {
-            console.error('Failed to start recording:', error);
-            alert('Failed to start recording: ' + error.message);
-            this.components.controls.setRecordingState(false);
-        }
-    }
-
-    /**
-     * Stop recording video
-     */
-    stopRecording() {
-        try {
-            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                this.mediaRecorder.stop();
-            }
-        } catch (error) {
-            console.error('Failed to stop recording:', error);
-            this.components.controls.setRecordingState(false);
-        }
-    }
-
-    /**
-     * Update editor settings
-     * @param {Object} newSettings - New settings to apply
-     */
-    updateSettings(newSettings) {
-        this.settings = { ...this.settings, ...newSettings };
-        
-        // Update individual component settings
-        if (newSettings.editor) {
-            this.components.codeEditor.updateSettings(newSettings.editor);
-        }
-
-        if (newSettings.canvas) {
-            this.components.renderer.resize(newSettings.canvas.width, newSettings.canvas.height);
-        }
-    }
-
-    /**
-     * Get current settings
-     * @returns {Object} Current settings
-     */
-    getSettings() {
-        return { ...this.settings };
-    }
-
-    /**
-     * Start autosave functionality
+     * Start autosave timer
      */
     startAutosave() {
         this.stopAutosave(); // Clear any existing timer
-        
-        if (!this.settings.autosave.enabled) {
-            return;
-        }
-
-        const intervalMs = this.settings.autosave.intervalMinutes * 60 * 1000;
         this.autosaveTimer = setInterval(() => {
             this.performAutosave();
-        }, intervalMs);
-
+        }, this.autosaveInterval);
     }
 
     /**
-     * Stop autosave functionality
+     * Stop autosave timer
      */
     stopAutosave() {
         if (this.autosaveTimer) {
@@ -1050,167 +210,430 @@ ${vertexShader}`;
     }
 
     /**
+     * Restart autosave with new interval
+     */
+    restartAutosave() {
+        this.stopAutosave();
+        this.startAutosave();
+    }
+
+    /**
      * Perform autosave operation
      */
     async performAutosave() {
         try {
-            const currentState = this.exportState();
-            const stateString = JSON.stringify(currentState);
+            // Only autosave if there are recent changes
+            const timeSinceLastChange = Date.now() - this.lastChangeTime;
+            if (timeSinceLastChange > this.autosaveInterval) {
+                return; // No recent changes
+            }
+
+            const currentHash = await this.getCurrentStateHash();
+            if (currentHash === this.lastAutosaveHash) {
+                return; // No changes since last autosave
+            }
+
+            if (this.currentProjectId) {
+                // Autosave to current project
+                await this.autosaveToCurrentProject();
+            } else {
+                // Autosave to recent projects
+                await this.autosaveToRecent();
+            }
+
+            this.lastAutosaveHash = currentHash;
+            this._hasUnsavedChanges = false;
             
-            // Create a simple hash to check if content has changed
-            const stateHash = this.simpleHash(stateString);
-            
-            // Only save if content has changed
-            if (stateHash === this.lastAutosaveHash) {
-                return;
-            }
-
-            // Check localStorage size limit
-            if (stateString.length > this.settings.autosave.maxStorageSize) {
-                console.warn('Autosave skipped: Content too large for localStorage');
-                return;
-            }
-
-            // Save to localStorage
-            const autosaveData = {
-                timestamp: new Date().toISOString(),
-                state: currentState,
-                hash: stateHash
-            };
-
-            localStorage.setItem(this.autosaveKey, JSON.stringify(autosaveData));
-            this.lastAutosaveHash = stateHash;
-
-            // Show notification if enabled
-            if (this.settings.autosave.showNotifications) {
-                this.showAutosaveNotification();
-            }
-
+            console.log('Autosave completed');
         } catch (error) {
             console.error('Autosave failed:', error);
         }
     }
 
     /**
-     * Show autosave notification
-     * @param {string} message - Custom message to show
+     * Autosave to current project
      */
-    showAutosaveNotification(message = 'Autosaved') {
-        // Create a simple notification element
-        const notification = document.createElement('div');
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--accent-primary, #4a90e2);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
-            z-index: 10000;
-            transition: opacity 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        `;
-
-        document.body.appendChild(notification);
-
-        // Remove notification after 2 seconds
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    document.body.removeChild(notification);
-                }
-            }, 300);
-        }, 2000);
-    }
-
-    /**
-     * Check if autosaved data exists
-     * @returns {boolean} True if autosaved data exists
-     */
-    hasAutosaveData() {
+    async autosaveToCurrentProject() {
         try {
-            const autosaveData = localStorage.getItem(this.autosaveKey);
-            return autosaveData !== null;
+            const projectData = await this.exportCurrentState();
+            const metadata = await this.projectManager.getProjectMetadata(this.currentProjectId);
+            
+            await this.projectManager.saveProject(
+                projectData,
+                metadata?.name || 'Untitled Project',
+                this.currentProjectId
+            );
+            
+            // Show autosave notification
+            this.components.notification.info('Project autosaved');
         } catch (error) {
-            console.error('Error checking autosave data:', error);
-            return false;
+            console.error('Failed to autosave to current project:', error);
+            this.components.notification.error('Autosave failed');
         }
     }
 
     /**
-     * Restore from autosave
-     * @returns {boolean} True if restore was successful
+     * Autosave to recent projects
      */
-    async restoreFromAutosave() {
+    async autosaveToRecent() {
         try {
-            const autosaveDataString = localStorage.getItem(this.autosaveKey);
-            if (!autosaveDataString) {
-                return false;
+            const projectData = await this.exportCurrentState();
+            const timestamp = Date.now();
+            const recentId = `${this.recentProjectPrefix}${timestamp}`;
+            
+            await this.projectManager.saveProject(
+                projectData,
+                `Recent Work (${new Date(timestamp).toLocaleString()})`,
+                recentId
+            );
+            
+            // Clean up old recent projects
+            await this.cleanupRecentProjects();
+            
+            // Show autosave notification
+            this.components.notification.info('Recent work autosaved');
+        } catch (error) {
+            console.error('Failed to autosave to recent:', error);
+            this.components.notification.error('Autosave failed');
+        }
+    }
+
+    /**
+     * Clean up old recent projects
+     */
+    async cleanupRecentProjects() {
+        try {
+            const allProjects = await this.projectManager.getAllProjects();
+            const recentProjects = allProjects.filter(p => 
+                p.id.startsWith(this.recentProjectPrefix)
+            );
+            
+            // Sort by creation time (oldest first)
+            recentProjects.sort((a, b) => a.createdAt - b.createdAt);
+            
+            // Remove old projects beyond the limit
+            const projectsToDelete = recentProjects.slice(0, -this.maxRecentProjects);
+            const expiredProjects = recentProjects.filter(p => 
+                Date.now() - p.createdAt > this.recentProjectExpiry
+            );
+            
+            const allToDelete = [...projectsToDelete, ...expiredProjects];
+            
+            for (const project of allToDelete) {
+                await this.projectManager.deleteProject(project.id);
             }
-
-            const autosaveData = JSON.parse(autosaveDataString);
-            if (!autosaveData.state) {
-                return false;
+            
+            if (allToDelete.length > 0) {
+                console.log(`Cleaned up ${allToDelete.length} old recent projects`);
             }
-
-            // Import the autosaved state
-            await this.importState(autosaveData.state);
-            this.lastAutosaveHash = autosaveData.hash;
-
-            return true;
         } catch (error) {
-            console.error('Failed to restore from autosave:', error);
-            return false;
+            console.error('Failed to cleanup recent projects:', error);
         }
     }
 
     /**
-     * Clear autosave data
+     * Get hash of current state for change detection
      */
-    clearAutosaveData() {
-        try {
-            localStorage.removeItem(this.autosaveKey);
-            this.lastAutosaveHash = null;
-        } catch (error) {
-            console.error('Error clearing autosave data:', error);
-        }
+    async getCurrentStateHash() {
+        const state = await this.exportCurrentState();
+        return this.simpleHash(JSON.stringify(state));
     }
 
     /**
-     * Simple hash function for content comparison
-     * @param {string} str - String to hash
-     * @returns {number} Simple hash value
+     * Simple hash function for change detection
      */
     simpleHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32bit integer
+            hash = hash & hash; // Convert to 32-bit integer
         }
-        return hash;
+        return hash.toString();
     }
 
+    /**
+     * Export current state for saving
+     */
+    async exportCurrentState() {
+        return {
+            shaders: {
+                vertex: this.components.codeEditor.getShaderCode('vertex'),
+                fragment: this.components.codeEditor.getShaderCode('fragment')
+            },
+            uniforms: await this.components.uniformManager.exportUniforms(),
+            settings: this.components.canvasSettings.exportSettings(),
+            canvas: this.components.renderer.exportCanvasState(),
+            view: this.components.renderer.exportViewState()
+        };
+    }
 
+    /**
+     * Create a new project
+     */
+    createNewProject() {
+        this.currentProjectId = null;
+        this._hasUnsavedChanges = false;
+        this.lastAutosaveHash = null;
+        document.dispatchEvent(new CustomEvent('projectChanged', { 
+            detail: { projectId: null } 
+        }));
+    }
+
+    /**
+     * Save current project
+     * @param {string} projectName - Name for the project (optional)
+     */
+    async saveCurrentProject(projectName = null) {
+        try {
+            let finalProjectName = projectName;
+            
+            // If no project name provided and no current project, show dialog
+            if (!finalProjectName && !this.currentProjectId) {
+                try {
+                    finalProjectName = await this.components.projectNameDialog.show('Untitled Project');
+                } catch (error) {
+                    // User cancelled the dialog
+                    return null;
+                }
+            }
+            
+            // If we have a current project but no name, use existing name
+            if (!finalProjectName && this.currentProjectId) {
+                const metadata = await this.projectManager.getProjectMetadata(this.currentProjectId);
+                finalProjectName = metadata.name;
+            }
+            
+            const projectData = await this.exportCurrentState();
+            const projectId = await this.projectManager.saveProject(projectData, finalProjectName, this.currentProjectId);
+            
+            this.currentProjectId = projectId;
+            this._hasUnsavedChanges = false;
+            this.lastAutosaveHash = await this.getCurrentStateHash();
+            
+            // Show success notification
+            this.components.notification.success(`Project "${finalProjectName}" saved successfully!`);
+            
+            document.dispatchEvent(new CustomEvent('projectSaved', { 
+                detail: { projectId, projectName: finalProjectName } 
+            }));
+            
+            return projectId;
+        } catch (error) {
+            console.error('Failed to save project:', error);
+            this.components.notification.error('Failed to save project. Please try again.');
+            throw error;
+        }
+    }
+
+    /**
+     * Load a project
+     * @param {string} projectId - Project ID to load
+     */
+    async loadProject(projectId) {
+        try {
+            const projectData = await this.projectManager.loadProject(projectId);
+            await this.importProjectData(projectData);
+            
+            this.currentProjectId = projectId;
+            this._hasUnsavedChanges = false;
+            this.lastAutosaveHash = await this.getCurrentStateHash();
+            
+            document.dispatchEvent(new CustomEvent('projectLoaded', { 
+                detail: { projectId } 
+            }));
+        } catch (error) {
+            console.error('Failed to load project:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Import project data
+     * @param {Object} data - Project data to import
+     */
+    async importProjectData(data) {
+        try {
+            // Import shaders
+            if (data.shaders) {
+                if (data.shaders.vertex) {
+                    this.components.codeEditor.setShaderCode('vertex', data.shaders.vertex);
+                }
+                if (data.shaders.fragment) {
+                    this.components.codeEditor.setShaderCode('fragment', data.shaders.fragment);
+                }
+            }
+
+            // Import uniforms
+            if (data.uniforms) {
+                this.components.uniformManager.importUniforms(data.uniforms);
+            }
+
+            // Import settings
+            if (data.settings) {
+                this.components.canvasSettings.importSettings(data.settings);
+            }
+
+            // Import canvas state
+            if (data.canvas) {
+                this.components.renderer.importCanvasState(data.canvas);
+            }
+
+            // Import view state
+            if (data.view) {
+                this.components.renderer.importViewState(data.view);
+            }
+        } catch (error) {
+            console.error('Failed to import project data:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Import project from file
+     * @param {Object} data - Project data from file
+     */
+    async importProjectFromFile(data) {
+        try {
+            await this.importProjectData(data);
+            const projectId = await this.saveCurrentProject('Imported Project');
+            
+            document.dispatchEvent(new CustomEvent('projectImported', { 
+                detail: { projectId } 
+            }));
+            
+            return projectId;
+        } catch (error) {
+            console.error('Failed to import project from file:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get current project ID
+     * @returns {string|null} Current project ID
+     */
+    getCurrentProjectId() {
+        return this.currentProjectId;
+    }
+
+    /**
+     * Check if there are unsaved changes
+     * @returns {boolean} True if there are unsaved changes
+     */
+    hasUnsavedChanges() {
+        return this._hasUnsavedChanges;
+    }
+
+    /**
+     * Get all projects
+     * @returns {Promise<Array>} Array of project metadata
+     */
+    async getAllProjects() {
+        return await this.projectManager.getAllProjects();
+    }
+
+    /**
+     * Delete a project
+     * @param {string} projectId - Project ID to delete
+     * @returns {Promise<boolean>} Success status
+     */
+    async deleteProject(projectId) {
+        try {
+            const success = await this.projectManager.deleteProject(projectId);
+            
+            if (success && projectId === this.currentProjectId) {
+                this.createNewProject();
+            }
+            
+            return success;
+        } catch (error) {
+            console.error('Failed to delete project:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Update project name
+     * @param {string} projectId - Project ID
+     * @param {string} newName - New project name
+     * @returns {Promise<boolean>} Success status
+     */
+    async updateProjectName(projectId, newName) {
+        try {
+            return await this.projectManager.updateProjectName(projectId, newName);
+        } catch (error) {
+            console.error('Failed to update project name:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Export project to file
+     * @param {string} projectId - Project ID to export
+     */
+    async exportProjectToFile(projectId) {
+        try {
+            const projectData = await this.projectManager.loadProject(projectId);
+            const metadata = await this.projectManager.getProjectMetadata(projectId);
+            
+            const exportData = {
+                metadata,
+                data: projectData
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
+                type: 'application/json' 
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${metadata.name || 'project'}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to export project:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get storage info
+     * @returns {Promise<Object>} Storage usage information
+     */
+    async getStorageInfo() {
+        return await this.projectManager.getStorageInfo();
+    }
+
+    /**
+     * Handle unsaved changes when loading a project
+     * @returns {Promise<string>} 'save', 'dont-save', or 'cancel'
+     */
+    async handleUnsavedChanges() {
+        if (!this.hasUnsavedChanges()) {
+            return 'dont-save';
+        }
+        
+        try {
+            return await this.components.unsavedChangesDialog.show();
+        } catch (error) {
+            return 'cancel';
+        }
+    }
 
     /**
      * Clean up resources
      */
     destroy() {
-        // Stop autosave before cleanup
         this.stopAutosave();
         
-        // Clean up all components
         Object.values(this.components).forEach(component => {
             if (component && typeof component.destroy === 'function') {
                 component.destroy();
             }
         });
-
-        // Clear components
-        this.components = {};
     }
 } 
