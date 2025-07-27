@@ -1105,6 +1105,64 @@ export class WebGLRenderer {
     }
 
     /**
+     * Export canvas state for saving
+     * @returns {Object} Canvas state data
+     */
+    exportCanvasState() {
+        return {
+            width: this.canvas.width,
+            height: this.canvas.height,
+            filtering: this.canvasFiltering
+        };
+    }
+
+    /**
+     * Import canvas state from saved data
+     * @param {Object} data - Canvas state data
+     */
+    importCanvasState(data) {
+        if (data) {
+            if (data.width && data.height) {
+                this.resize(data.width, data.height);
+            }
+            if (data.filtering) {
+                this.setCanvasFiltering(data.filtering);
+            }
+        }
+    }
+
+    /**
+     * Export view state for saving
+     * @returns {Object} View state data
+     */
+    exportViewState() {
+        return {
+            offset: { ...this.viewOffset },
+            zoom: this.viewZoom,
+            panZoomEnabled: this.panZoomEnabled
+        };
+    }
+
+    /**
+     * Import view state from saved data
+     * @param {Object} data - View state data
+     */
+    importViewState(data) {
+        if (data) {
+            if (data.offset) {
+                this.viewOffset = { ...data.offset };
+            }
+            if (data.zoom !== undefined) {
+                this.viewZoom = data.zoom;
+            }
+            if (data.panZoomEnabled !== undefined) {
+                this.panZoomEnabled = data.panZoomEnabled;
+            }
+            this.updateCanvasTransform();
+        }
+    }
+
+    /**
      * Clean up resources
      */
     destroy() {

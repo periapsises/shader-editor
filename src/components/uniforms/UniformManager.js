@@ -544,6 +544,12 @@ export class UniformManager {
             }
         });
         document.dispatchEvent(event);
+        
+        // Also dispatch uniformChanged for autosave
+        const uniformEvent = new CustomEvent('uniformChanged', {
+            detail: { uniforms: this.uniforms }
+        });
+        document.dispatchEvent(uniformEvent);
     }
 
     /**

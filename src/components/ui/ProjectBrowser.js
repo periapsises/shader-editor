@@ -290,24 +290,10 @@ export class ProjectBrowser {
      */
     async saveCurrentProject() {
         try {
-            const currentId = this.shaderEditor.getCurrentProjectId();
-            let projectName;
-
-            if (currentId) {
-                // Updating existing project - keep current name
-                const metadata = await this.shaderEditor.projectManager.getProjectMetadata(currentId);
-                projectName = metadata?.name;
-            } else {
-                // New project - ask for name
-                projectName = prompt('Enter a name for this project:', 'My Shader Project');
-                if (!projectName) return; // User cancelled
-            }
-
-            await this.shaderEditor.saveCurrentProject(projectName);
+            await this.shaderEditor.saveCurrentProject();
             await this.refreshProjects();
         } catch (error) {
             console.error('Failed to save project:', error);
-            alert('Failed to save project: ' + error.message);
         }
     }
 
@@ -319,9 +305,19 @@ export class ProjectBrowser {
         try {
             const hasUnsaved = this.shaderEditor.hasUnsavedChanges();
             if (hasUnsaved && projectId !== this.shaderEditor.getCurrentProjectId()) {
-                const save = confirm('You have unsaved changes. Would you like to save the current project first?');
-                if (save) {
-                    await this.saveCurrentProject();
+                const action = await this.shaderEditor.handleUnsavedChanges();
+                
+                switch (action) {
+                    case 'save':
+                        await this.saveCurrentProject();
+                        break;
+                    case 'dont-save':
+                        // Continue without saving
+                        break;
+                    case 'cancel':
+                        return; // Don't load the project
+                    default:
+                        return; // Don't load the project
                 }
             }
 
