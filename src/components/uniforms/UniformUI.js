@@ -37,28 +37,21 @@ export class UniformUI {
         const mainContainer = document.createElement('div');
         mainContainer.className = 'uniform-main-container';
 
-        // Create info section
-        const infoDiv = this.createInfoSection(uniformName, uniformType, isDefault);
+        // Create header section (always visible)
+        const headerDiv = this.createHeaderSection(uniformName, uniformType, isDefault);
+        
+        // Create details section (collapsible)
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'uniform-details';
         
         // Create value control
         const valueControl = this.createValueControl(uniformName, uniformType, defaultValue);
         valueControl.id = `${uniformName}Value`;
+        
+        detailsDiv.appendChild(valueControl);
 
-        // Add time control buttons for time uniforms
-        const builtinType = this.uniformManager.builtinAssociations.get(uniformName);
-        if (builtinType === 'time') {
-            const timeButtons = this.createTimeButtons(uniformName);
-            infoDiv.appendChild(timeButtons);
-        }
-
-        // Add resize button for resolution uniforms
-        if (builtinType === 'resolution') {
-            const resolutionButtons = this.createResolutionButtons(uniformName);
-            infoDiv.appendChild(resolutionButtons);
-        }
-
-        mainContainer.appendChild(infoDiv);
-        mainContainer.appendChild(valueControl);
+        mainContainer.appendChild(headerDiv);
+        mainContainer.appendChild(detailsDiv);
         
         uniformDiv.appendChild(mainContainer);
         
@@ -69,22 +62,43 @@ export class UniformUI {
         } else {
             this.uniformList.appendChild(uniformDiv);
         }
+
+        // Restore collapsed state from localStorage
+        const collapsedUniforms = JSON.parse(localStorage.getItem('collapsedUniforms') || '[]');
+        if (collapsedUniforms.includes(uniformName)) {
+            uniformDiv.classList.add('collapsed');
+            detailsDiv.style.display = 'none';
+            const toggleBtn = uniformDiv.querySelector('.collapse-toggle-btn');
+            if (toggleBtn) {
+                toggleBtn.textContent = '▶';
+                toggleBtn.title = 'Expand uniform details';
+            }
+        }
     }
 
     /**
-     * Create info section for uniform
+     * Create header section for uniform (name, type, buttons, toggle)
      * @param {string} uniformName - The uniform name
      * @param {string} uniformType - The uniform type
      * @param {boolean} isDefault - Whether this is a default uniform
-     * @returns {HTMLElement} The info section element
+     * @returns {HTMLElement} The header section element
      */
-    createInfoSection(uniformName, uniformType, isDefault) {
+    createHeaderSection(uniformName, uniformType, isDefault) {
         const infoDiv = document.createElement('div');
         infoDiv.className = 'uniform-info';
         
         // Top row with name and buttons
         const topRowDiv = document.createElement('div');
         topRowDiv.className = 'uniform-top-row';
+        
+        // Make the header clickable to toggle collapse
+        topRowDiv.style.cursor = 'pointer';
+        topRowDiv.addEventListener('click', (e) => {
+            // Only toggle if clicked on the header itself, not on buttons
+            if (e.target === topRowDiv || e.target.classList.contains('uniform-name')) {
+                this.toggleUniformCollapse(uniformName);
+            }
+        });
         
         const nameSpan = document.createElement('div');
         nameSpan.className = 'uniform-name';
@@ -99,7 +113,10 @@ export class UniformUI {
         editBtn.className = 'edit-btn';
         editBtn.textContent = '✎';
         editBtn.title = 'Edit uniform';
-        editBtn.addEventListener('click', () => this.uniformManager.editUniform(uniformName));
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.uniformManager.editUniform(uniformName);
+        });
         topButtonsDiv.appendChild(editBtn);
         
         // Delete button for custom uniforms
@@ -108,9 +125,23 @@ export class UniformUI {
             deleteBtn.className = 'delete-btn';
             deleteBtn.textContent = '×';
             deleteBtn.title = 'Remove uniform';
-            deleteBtn.addEventListener('click', () => this.uniformManager.removeUniform(uniformName));
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.uniformManager.removeUniform(uniformName);
+            });
             topButtonsDiv.appendChild(deleteBtn);
         }
+        
+        // Collapse toggle button (rightmost)
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'collapse-toggle-btn';
+        toggleBtn.textContent = '▼';
+        toggleBtn.title = 'Toggle uniform details';
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleUniformCollapse(uniformName);
+        });
+        topButtonsDiv.appendChild(toggleBtn);
         
         topRowDiv.appendChild(nameSpan);
         topRowDiv.appendChild(topButtonsDiv);
@@ -118,6 +149,10 @@ export class UniformUI {
         // Meta information
         const metaDiv = document.createElement('div');
         metaDiv.className = 'uniform-meta';
+        metaDiv.style.cursor = 'pointer';
+        metaDiv.addEventListener('click', () => {
+            this.toggleUniformCollapse(uniformName);
+        });
         
         const typeSpan = document.createElement('span');
         typeSpan.className = 'uniform-type';
@@ -140,6 +175,28 @@ export class UniformUI {
     }
 
     /**
+     * Get description for builtin uniform types
+     * @param {string} builtinType - The builtin type
+     * @returns {string} Human-readable description
+     */
+    getBuiltinDescription(builtinType) {
+        switch (builtinType) {
+            case 'time':
+                return 'animation time';
+            case 'resolution':
+                return 'canvas resolution';
+            case 'mouse':
+                return 'mouse position';
+            case 'lastFrame':
+                return 'previous frame texture';
+            case 'keyState':
+                return 'keyboard input';
+            default:
+                return 'system value';
+        }
+    }
+
+    /**
      * Create value control for uniform
      * @param {string} uniformName - The uniform name
      * @param {string} uniformType - The uniform type
@@ -149,35 +206,25 @@ export class UniformUI {
     createValueControl(uniformName, uniformType, defaultValue) {
         const builtinType = this.uniformManager.builtinAssociations.get(uniformName);
         
-        // For built-in uniforms (except time and resolution), show read-only display
-        if (builtinType && builtinType !== 'time' && builtinType !== 'resolution') {
+        // For all built-in uniforms, show "Linked to [description]" with current value
+        if (builtinType && builtinType !== 'custom') {
             const display = document.createElement('span');
-            display.className = 'uniform-value readonly';
+            display.className = 'uniform-value readonly linked';
+            
+            const description = this.getBuiltinDescription(builtinType);
+            const currentValue = this.formatValueForDisplay(uniformType, defaultValue);
             
             // Special handling for key state uniforms
             if (builtinType === 'keyState') {
                 const uniform = this.uniformManager.getUniform(uniformName);
                 const keyCode = uniform ? uniform.keyCode : null;
                 const keyLabel = keyCode ? this.getKeyDisplayName(keyCode) : 'No key';
-                display.textContent = `${this.formatValueForDisplay(uniformType, defaultValue)} (${keyLabel})`;
+                display.innerHTML = `<em>Linked to ${description}</em><br><small>${currentValue} (${keyLabel})</small>`;
             } else {
-                display.textContent = this.formatValueForDisplay(uniformType, defaultValue);
+                display.innerHTML = `<em>Linked to ${description}</em><br><small>${currentValue}</small>`;
             }
             
             return display;
-        }
-        
-        // For time uniforms, create read-only display (buttons added separately)
-        if (builtinType === 'time') {
-            const display = document.createElement('span');
-            display.className = 'uniform-value readonly';
-            display.textContent = this.formatValueForDisplay(uniformType, defaultValue);
-            return display;
-        }
-
-        // For resolution uniforms, create editable vec2 control
-        if (builtinType === 'resolution') {
-            return this.createVecControl(uniformName, uniformType, defaultValue);
         }
         
         // For custom uniforms, create interactive controls
@@ -1351,4 +1398,51 @@ export class UniformUI {
         
         return `${ratioW}:${ratioH}`;
     }
+
+    /**
+     * Toggle the collapsed state of a uniform
+     * @param {string} uniformName - The name of the uniform to toggle
+     */
+    toggleUniformCollapse(uniformName) {
+        const uniformItem = document.querySelector(`[data-name="${uniformName}"]`);
+        if (!uniformItem) return;
+
+        const detailsDiv = uniformItem.querySelector('.uniform-details');
+        const toggleBtn = uniformItem.querySelector('.collapse-toggle-btn');
+        
+        if (!detailsDiv || !toggleBtn) return;
+
+        const isCollapsed = uniformItem.classList.contains('collapsed');
+        
+        if (isCollapsed) {
+            // Expand
+            uniformItem.classList.remove('collapsed');
+            detailsDiv.style.display = 'block';
+            toggleBtn.textContent = '▼';
+            toggleBtn.title = 'Collapse uniform details';
+        } else {
+            // Collapse
+            uniformItem.classList.add('collapsed');
+            detailsDiv.style.display = 'none';
+            toggleBtn.textContent = '▶';
+            toggleBtn.title = 'Expand uniform details';
+        }
+
+        // Save collapsed state to localStorage
+        const collapsedUniforms = JSON.parse(localStorage.getItem('collapsedUniforms') || '[]');
+        if (isCollapsed) {
+            // Remove from collapsed list
+            const index = collapsedUniforms.indexOf(uniformName);
+            if (index > -1) {
+                collapsedUniforms.splice(index, 1);
+            }
+        } else {
+            // Add to collapsed list
+            if (!collapsedUniforms.includes(uniformName)) {
+                collapsedUniforms.push(uniformName);
+            }
+        }
+        localStorage.setItem('collapsedUniforms', JSON.stringify(collapsedUniforms));
+    }
 } 
+

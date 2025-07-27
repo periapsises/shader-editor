@@ -1,4 +1,4 @@
-import { initWebGL, createProgram, createFullScreenQuad, setUniformValue, createTexture } from '../../utils/webgl.js';
+import { initWebGL, createProgram, createFullScreenQuad, setUniformValue, createTexture, parseShaderErrors } from '../../utils/webgl.js';
 import { DEFAULT_SETTINGS } from '../../config/settings.js';
 
 /**
@@ -364,27 +364,122 @@ export class WebGLRenderer {
                 this.gl.deleteProgram(this.program);
             }
 
-            // Create new program
-            this.program = createProgram(this.gl, vertexSource, fragmentSource);
-            this.gl.useProgram(this.program);
+            // Try to compile shaders individually to get better error information
+            let allErrors = [];
+            let vertexShader, fragmentShader;
 
-            // Get attribute locations
-            this.positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
+            // Compile vertex shader
+            try {
+                vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER);
+                this.gl.shaderSource(vertexShader, vertexSource);
+                this.gl.compileShader(vertexShader);
 
-            // Setup vertex attributes
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
-            this.gl.enableVertexAttribArray(this.positionLocation);
-            this.gl.vertexAttribPointer(this.positionLocation, 2, this.gl.FLOAT, false, 0, 0);
-
-            // Clear uniform locations - they will be updated on next render
-            this.uniformLocations.clear();
-
-            // Reset time if setting is enabled
-            if (this.resetTimeOnCompile) {
-                this.resetAnimation();
+                if (!this.gl.getShaderParameter(vertexShader, this.gl.COMPILE_STATUS)) {
+                    const error = this.gl.getShaderInfoLog(vertexShader);
+                    this.gl.deleteShader(vertexShader);
+                    const parsedErrors = parseShaderErrors(error, 'vertex');
+                    allErrors = allErrors.concat(parsedErrors);
+                    throw new Error(`Vertex shader compilation failed: ${error}`);
+                }
+            } catch (error) {
+                if (allErrors.length === 0) {
+                    // If parsing didn't extract any errors, add a general one
+                    allErrors.push({
+                        line: 0,
+                        column: 0,
+                        message: error.message,
+                        type: 'error',
+                        shaderType: 'vertex'
+                    });
+                }
+                this.dispatchDetailedError(error.message, allErrors);
+                this.dispatchEvent('shaderCompiled', { success: false, error: error.message, errors: allErrors });
+                return;
             }
 
-            this.dispatchEvent('shaderCompiled', { success: true });
+            // Compile fragment shader
+            try {
+                fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER);
+                this.gl.shaderSource(fragmentShader, fragmentSource);
+                this.gl.compileShader(fragmentShader);
+
+                if (!this.gl.getShaderParameter(fragmentShader, this.gl.COMPILE_STATUS)) {
+                    const error = this.gl.getShaderInfoLog(fragmentShader);
+                    this.gl.deleteShader(fragmentShader);
+                    const parsedErrors = parseShaderErrors(error, 'fragment');
+                    allErrors = allErrors.concat(parsedErrors);
+                    throw new Error(`Fragment shader compilation failed: ${error}`);
+                }
+            } catch (error) {
+                if (vertexShader) {
+                    this.gl.deleteShader(vertexShader);
+                }
+                if (allErrors.length === 0) {
+                    // If parsing didn't extract any errors, add a general one
+                    allErrors.push({
+                        line: 0,
+                        column: 0,
+                        message: error.message,
+                        type: 'error',
+                        shaderType: 'fragment'
+                    });
+                }
+                this.dispatchDetailedError(error.message, allErrors);
+                this.dispatchEvent('shaderCompiled', { success: false, error: error.message, errors: allErrors });
+                return;
+            }
+
+            // Create and link program
+            try {
+                this.program = this.gl.createProgram();
+                this.gl.attachShader(this.program, vertexShader);
+                this.gl.attachShader(this.program, fragmentShader);
+                this.gl.linkProgram(this.program);
+
+                if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) {
+                    const error = this.gl.getProgramInfoLog(this.program);
+                    this.gl.deleteProgram(this.program);
+                    this.program = null;
+                    throw new Error('Shader program linking failed: ' + error);
+                }
+
+                // Clean up shaders (they're now part of the program)
+                this.gl.deleteShader(vertexShader);
+                this.gl.deleteShader(fragmentShader);
+
+                this.gl.useProgram(this.program);
+
+                // Get attribute locations
+                this.positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
+
+                // Setup vertex attributes
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+                this.gl.enableVertexAttribArray(this.positionLocation);
+                this.gl.vertexAttribPointer(this.positionLocation, 2, this.gl.FLOAT, false, 0, 0);
+
+                // Clear uniform locations - they will be updated on next render
+                this.uniformLocations.clear();
+
+                // Reset time if setting is enabled
+                if (this.resetTimeOnCompile) {
+                    this.resetAnimation();
+                }
+
+                // Clear any errors and annotations
+                this.dispatchEvent('shaderCompiled', { success: true, errors: [] });
+
+            } catch (error) {
+                // Clean up shaders if program creation failed
+                if (vertexShader) {
+                    this.gl.deleteShader(vertexShader);
+                }
+                if (fragmentShader) {
+                    this.gl.deleteShader(fragmentShader);
+                }
+                
+                this.dispatchError(error.message);
+                this.dispatchEvent('shaderCompiled', { success: false, error: error.message });
+            }
 
         } catch (error) {
             this.dispatchError(error.message);
@@ -676,6 +771,21 @@ export class WebGLRenderer {
      */
     dispatchError(message) {
         const event = new CustomEvent('renderError', { detail: { message } });
+        document.dispatchEvent(event);
+    }
+
+    /**
+     * Show detailed error with parsed error information
+     * @param {string} message - The error message
+     * @param {Array} errors - Array of parsed error objects
+     */
+    dispatchDetailedError(message, errors) {
+        const event = new CustomEvent('renderError', { 
+            detail: { 
+                message,
+                errors: errors || []
+            } 
+        });
         document.dispatchEvent(event);
     }
 

@@ -3,6 +3,8 @@ import { TabManager } from '../ui/TabManager.js';
 import { Controls } from '../ui/Controls.js';
 import { ErrorConsole } from '../ui/ErrorConsole.js';
 import { ExampleBrowser } from '../ui/ExampleBrowser.js';
+import { PanelManager } from '../ui/PanelManager.js';
+import { CanvasSettings } from '../ui/CanvasSettings.js';
 import { WebGLRenderer } from '../preview/WebGLRenderer.js';
 import { UniformManager } from '../uniforms/UniformManager.js';
 import { DEFAULT_SETTINGS } from '../../config/settings.js';
@@ -42,6 +44,7 @@ export class ShaderEditor {
             this.components.tabManager = new TabManager();
             this.components.controls = new Controls();
             this.components.exampleBrowser = new ExampleBrowser();
+            this.components.panelManager = new PanelManager();
             
             // Initialize editor components
             this.components.codeEditor = new CodeEditor();
@@ -49,6 +52,9 @@ export class ShaderEditor {
             
             // Initialize WebGL renderer
             this.components.renderer = new WebGLRenderer('glCanvas');
+            
+            // Initialize canvas settings (after renderer)
+            this.components.canvasSettings = new CanvasSettings(this.components.renderer);
         } catch (error) {
             console.error('Failed to initialize components:', error);
             this.components.errorConsole?.showError('Failed to initialize shader editor: ' + error.message);
@@ -82,11 +88,17 @@ export class ShaderEditor {
         // Handle render errors
         document.addEventListener('renderError', (e) => {
             this.components.errorConsole.showError(e.detail.message);
+            
+            // If we have detailed error information, show it in the editor annotations
+            if (e.detail.errors && e.detail.errors.length > 0) {
+                this.components.codeEditor.showErrors(e.detail.errors);
+            }
         });
 
         // Handle render error clearing
         document.addEventListener('renderErrorCleared', () => {
             this.components.errorConsole.hideError();
+            this.components.codeEditor.clearAllErrorAnnotations();
         });
 
         // Handle uniform updates for renderer
@@ -97,6 +109,17 @@ export class ShaderEditor {
         // Handle uniform changes (for recompilation)
         document.addEventListener('uniformsChanged', (e) => {
             this.onUniformsChanged(e.detail);
+        });
+
+        // Handle shader compilation results
+        document.addEventListener('shaderCompiled', (e) => {
+            if (e.detail.success) {
+                // Clear error annotations on successful compilation
+                this.components.codeEditor.clearAllErrorAnnotations();
+            } else if (e.detail.errors) {
+                // Show error annotations if compilation failed with detailed errors
+                this.components.codeEditor.showErrors(e.detail.errors);
+            }
         });
 
         // Handle animation state changes
@@ -176,8 +199,7 @@ export class ShaderEditor {
             this.onAutosaveIntervalChanged(e.detail.intervalMinutes);
         });
 
-        // Setup canvas filtering controls
-        this.setupCanvasFilteringControls();
+
     }
 
     /**
@@ -201,6 +223,7 @@ export class ShaderEditor {
             this.compileShaders();
             // Ensure UI button states are synchronized with renderer state
             this.syncUIWithRendererState();
+
         }, 100);
     }
 
@@ -425,6 +448,8 @@ export class ShaderEditor {
         }
     }
 
+
+
     /**
      * Handle autosave toggle event
      * @param {boolean} enabled - Whether autosave is enabled
@@ -497,6 +522,14 @@ export class ShaderEditor {
      */
     getUniformManager() {
         return this.components.uniformManager;
+    }
+
+    /**
+     * Get panel manager
+     * @returns {PanelManager} The panel manager instance
+     */
+    getPanelManager() {
+        return this.components.panelManager;
     }
 
     /**
@@ -1161,25 +1194,7 @@ ${vertexShader}`;
         return hash;
     }
 
-    /**
-     * Setup canvas filtering controls
-     */
-    setupCanvasFilteringControls() {
-        const filterSelect = document.getElementById('canvasFilterSelect');
-        
-        if (filterSelect) {
-            filterSelect.addEventListener('change', (e) => {
-                const event = new CustomEvent('canvasFilteringChanged', {
-                    detail: { mode: e.target.value }
-                });
-                document.dispatchEvent(event);
-            });
 
-            // Set initial state based on renderer
-            const currentMode = this.components.renderer.getCanvasFiltering();
-            filterSelect.value = currentMode;
-        }
-    }
 
     /**
      * Clean up resources

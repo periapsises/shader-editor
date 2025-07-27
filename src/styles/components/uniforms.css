@@ -1,17 +1,14 @@
-/* Uniform sidebar styles */
-.uniform-sidebar {
-    width: var(--sidebar-width);
-    min-width: var(--sidebar-min-width);
-    max-width: var(--sidebar-max-width);
-    background: #252525;
-    border-left: 1px solid var(--border-primary);
+/* Uniform panel styles (within tab content) */
+.uniform-panel {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    flex: 1;
 }
 
 
-.uniform-controls {
+.uniform-controls,
+.canvas-controls {
     flex: 1;
     overflow: hidden;
     display: flex;
@@ -19,7 +16,8 @@
     padding: var(--spacing-xxl);
 }
 
-.uniform-header {
+.uniform-header,
+.canvas-header {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xxl);
@@ -27,10 +25,83 @@
     align-items: stretch;
 }
 
-.uniform-controls h3 {
+.uniform-controls h3,
+.canvas-controls h3 {
     margin: 0;
     color: var(--text-primary);
     font-size: var(--font-xxl);
+}
+
+/* Canvas Settings Styles */
+.canvas-settings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xxl);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.setting-group label {
+    font-size: var(--font-md);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.setting-row input[type="number"] {
+    flex: 1;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    min-width: 0;
+}
+
+.setting-row input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.setting-row span {
+    color: var(--text-secondary);
+    font-size: var(--font-md);
+    font-weight: 500;
+}
+
+.setting-group select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.setting-group select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.setting-group select:hover {
+    border-color: var(--border-primary);
 }
 
 /* Create uniform placeholder item */
@@ -167,6 +238,7 @@
     font-size: var(--font-xl);
     word-break: break-word;
     flex: 1;
+    cursor: pointer;
 }
 
 .uniform-meta {
@@ -611,13 +683,13 @@
     background: var(--accent-primary);
     color: white;
     border: none;
-    padding: var(--spacing-sm) var(--spacing-lg);
+    padding: var(--spacing-xs);
     border-radius: var(--border-radius-sm);
     cursor: pointer;
-    font-size: var(--font-sm);
+    font-size: var(--font-xs);
     transition: background-color var(--transition-fast);
-    min-width: 2rem;
-    height: 2rem;
+    min-width: 1.5rem;
+    height: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -631,13 +703,13 @@
     background: var(--accent-danger);
     color: white;
     border: none;
-    padding: var(--spacing-sm) var(--spacing-lg);
+    padding: var(--spacing-xs);
     border-radius: var(--border-radius-sm);
     cursor: pointer;
-    font-size: var(--font-md);
+    font-size: var(--font-xs);
     transition: background-color var(--transition-fast);
-    min-width: 2rem;
-    height: 2rem;
+    min-width: 1.5rem;
+    height: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -645,6 +717,44 @@
 
 .delete-btn:hover {
     background: var(--accent-danger-hover);
+}
+
+.collapse-toggle-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-secondary);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-xs);
+    transition: all var(--transition-fast);
+    min-width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.collapse-toggle-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-accent);
+}
+
+/* Collapsed uniform styling */
+.uniform-item.collapsed {
+    padding-bottom: var(--spacing-lg);
+}
+
+.uniform-item.collapsed .uniform-details {
+    display: none;
+}
+
+/* Uniform details section */
+.uniform-details {
+    margin-top: var(--spacing-lg);
+    transition: all var(--transition-fast);
 }
 
 /* Responsive uniforms */
@@ -787,4 +897,118 @@
     content: 'No resolution info';
     color: var(--text-muted);
     font-style: italic;
+}
+
+/* Canvas Controls Styling */
+.resolution-presets {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+    width: 100%;
+    margin-top: var(--spacing-s);
+}
+
+.preset-btn {
+    flex: 1;
+    min-width: 0;
+    padding: var(--spacing-xs) var(--spacing-s);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: var(--font-sm);
+    line-height: 1.2;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.preset-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+}
+
+.preset-btn:active {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+}
+
+.animation-controls {
+    display: flex;
+    align-items: center;
+}
+
+.animation-controls .control-btn:first-child {
+    margin-right: var(--spacing-s);
+}
+
+.animation-controls .control-btn:last-of-type {
+    margin-right: var(--spacing-xl);
+}
+
+.control-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.control-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+}
+
+.control-btn:active {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+}
+
+.checkbox-control {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-s);
+}
+
+.checkbox-control input[type="checkbox"] {
+    margin: 0;
+}
+
+.checkbox-control label {
+    font-size: var(--font-sm);
+    cursor: pointer;
+}
+
+/* Linked Uniform Styling */
+.uniform-value.linked {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-s);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-s);
+}
+
+.uniform-value.linked em {
+    color: var(--accent-primary);
+    font-style: normal;
+    font-weight: 500;
+}
+
+.uniform-value.linked small {
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
 } 

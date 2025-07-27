@@ -5,15 +5,301 @@
     height: 100vh;
 }
 
-.main-content {
+/* Simplified Two-Panel System */
+.workspace {
     display: flex;
     flex: 1;
     overflow: hidden;
+    position: relative;
 }
+
+.panel-area {
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    min-height: 200px;
+    position: relative;
+}
+
+.left-area {
+    flex: 1;
+    min-width: 300px;
+}
+
+.right-area {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* Panel Areas */
+.editor-panel,
+.preview-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+/* Collapsible Settings Overlay */
+.settings-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 320px;
+    z-index: 200;
+    transition: transform var(--transition-normal);
+    display: flex;
+}
+
+.settings-overlay.collapsed {
+    transform: translateX(272px);
+}
+
+/* Overlay Sidebar (Toggle + Tabs) */
+.overlay-sidebar {
+    width: 48px;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-right: none;
+    border-top-left-radius: var(--border-radius);
+    border-bottom-left-radius: var(--border-radius);
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    align-items: center;
+}
+
+.settings-toggle {
+    width: 32px;
+    height: 32px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    margin: 16px auto 8px auto;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+
+.settings-toggle:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    transform: translateX(-2px);
+}
+
+.toggle-icon {
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: transform var(--transition-fast);
+}
+
+.settings-overlay.collapsed .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.settings-overlay .settings-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-left: none;
+    border-top-right-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+/* Vertical Tabs (Blender-style) */
+.vertical-tabs {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    flex: 1;
+    padding: 0 var(--spacing-xs);
+    padding-bottom: var(--spacing-sm);
+    gap: var(--spacing-xs);
+}
+
+.tab-btn.vertical {
+    width: 32px;
+    height: auto;
+    min-height: 32px;
+    padding: 16px 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    position: relative;
+    color: var(--text-secondary);
+    margin: 0 auto;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    overflow: visible;
+}
+
+.tab-btn.vertical:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    transform: translateX(-2px);
+}
+
+.tab-btn.vertical.active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+.tab-btn.vertical.active::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: var(--accent-secondary);
+    border-radius: 0 2px 2px 0;
+}
+
+.tab-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    line-height: 1;
+    text-align: center;
+    transform: rotate(-90deg);
+    white-space: nowrap;
+    user-select: none;
+    display: inline-block;
+}
+
+/* Specific sizing for each tab based on text content */
+.tab-btn.vertical[data-tab="canvas"] {
+    height: 80px; /* Sized for "CANVAS" text */
+}
+
+.tab-btn.vertical[data-tab="uniforms"] {
+    height: 100px; /* Sized for "UNIFORMS" text */
+}
+
+/* Tab Content Area */
+.tab-content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tab-content {
+    flex: 1;
+    overflow: hidden;
+    display: none;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Splitters */
+.splitter {
+    background: var(--border-primary);
+    transition: background-color var(--transition-fast);
+    position: relative;
+    z-index: 100;
+}
+
+.splitter:hover {
+    background: var(--accent-primary);
+}
+
+.splitter.horizontal-splitter {
+    width: 4px;
+    cursor: col-resize;
+    min-width: 4px;
+}
+
+.splitter.vertical-splitter {
+    height: 4px;
+    cursor: row-resize;
+    min-height: 4px;
+}
+
+.splitter.dragging {
+    background: var(--accent-primary);
+    box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .main-content {
+    .workspace {
         flex-direction: column;
+    }
+    
+    .panel-area {
+        min-width: unset;
+        min-height: 200px;
+    }
+    
+    .left-area, .right-area {
+        flex: 1;
+    }
+    
+    .splitter.horizontal-splitter {
+        width: 100%;
+        height: 4px;
+        cursor: row-resize;
+    }
+    
+    .settings-overlay {
+        width: 280px;
+        position: fixed;
+        z-index: 1000;
+    }
+    
+    .settings-overlay.collapsed {
+        transform: translateX(232px);
+    }
+    
+    .overlay-sidebar {
+        width: 44px;
+    }
+    
+    .settings-toggle {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .tab-btn.vertical {
+        width: 28px;
+        padding: 12px 0;
+    }
+    
+    .tab-btn.vertical[data-tab="canvas"] {
+        height: 72px;
+    }
+    
+    .tab-btn.vertical[data-tab="uniforms"] {
+        height: 90px;
+    }
+    
+    .tab-label {
+        font-size: 10px;
+        letter-spacing: 0.8px;
     }
 } 

@@ -50,18 +50,6 @@ export class Controls {
             this.elements.set('saveBtn', saveBtn);
         }
 
-        // Save dropdown button
-        const saveDropdownBtn = document.getElementById('saveDropdownBtn');
-        if (saveDropdownBtn) {
-            this.elements.set('saveDropdownBtn', saveDropdownBtn);
-        }
-
-        // Save dropdown menu
-        const saveDropdown = document.getElementById('saveDropdown');
-        if (saveDropdown) {
-            this.elements.set('saveDropdown', saveDropdown);
-        }
-
         // Export button
         const exportBtn = document.getElementById('exportBtn');
         if (exportBtn) {
@@ -133,6 +121,42 @@ export class Controls {
         if (autosaveInterval) {
             this.elements.set('autosaveInterval', autosaveInterval);
         }
+
+        // Menu buttons
+        const fileMenuBtn = document.getElementById('fileMenuBtn');
+        if (fileMenuBtn) {
+            this.elements.set('fileMenuBtn', fileMenuBtn);
+        }
+
+        const toolsMenuBtn = document.getElementById('toolsMenuBtn');
+        if (toolsMenuBtn) {
+            this.elements.set('toolsMenuBtn', toolsMenuBtn);
+        }
+
+        const settingsMenuBtn = document.getElementById('settingsMenuBtn');
+        if (settingsMenuBtn) {
+            this.elements.set('settingsMenuBtn', settingsMenuBtn);
+        }
+
+        // Menu panels
+        const fileMenuPanel = document.getElementById('fileMenuPanel');
+        if (fileMenuPanel) {
+            this.elements.set('fileMenuPanel', fileMenuPanel);
+        }
+
+        const toolsMenuPanel = document.getElementById('toolsMenuPanel');
+        if (toolsMenuPanel) {
+            this.elements.set('toolsMenuPanel', toolsMenuPanel);
+        }
+
+        const settingsMenuPanel = document.getElementById('settingsMenuPanel');
+        if (settingsMenuPanel) {
+            this.elements.set('settingsMenuPanel', settingsMenuPanel);
+        }
+
+
+
+
     }
 
     /**
@@ -179,35 +203,7 @@ export class Controls {
             this.eventListeners.set('saveBtn', listener);
         }
 
-        // Save dropdown button
-        const saveDropdownBtn = this.elements.get('saveDropdownBtn');
-        if (saveDropdownBtn) {
-            const listener = (e) => {
-                e.stopPropagation();
-                this.toggleSaveDropdown();
-            };
-            saveDropdownBtn.addEventListener('click', listener);
-            this.eventListeners.set('saveDropdownBtn', listener);
-        }
-
-        // Save dropdown items
-        const saveDropdown = this.elements.get('saveDropdown');
-        if (saveDropdown) {
-            const listener = (e) => {
-                if (e.target.classList.contains('dropdown-item')) {
-                    const saveType = e.target.dataset.saveType;
-                    this.onSaveClick(saveType);
-                    this.hideSaveDropdown();
-                }
-            };
-            saveDropdown.addEventListener('click', listener);
-            this.eventListeners.set('saveDropdown', listener);
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', () => {
-            this.hideSaveDropdown();
-        });
+        // Note: Old save dropdown functionality removed - now using menu system
 
         // Export button
         const exportBtn = this.elements.get('exportBtn');
@@ -308,6 +304,69 @@ export class Controls {
             autosaveInterval.addEventListener('change', listener);
             this.eventListeners.set('autosaveInterval', listener);
         }
+
+        // Menu buttons
+        const fileMenuBtn = this.elements.get('fileMenuBtn');
+        if (fileMenuBtn) {
+            const listener = (e) => {
+                e.stopPropagation();
+                this.toggleMenu('file');
+            };
+            fileMenuBtn.addEventListener('click', listener);
+            this.eventListeners.set('fileMenuBtn', listener);
+        }
+
+        const toolsMenuBtn = this.elements.get('toolsMenuBtn');
+        if (toolsMenuBtn) {
+            const listener = (e) => {
+                e.stopPropagation();
+                this.toggleMenu('tools');
+            };
+            toolsMenuBtn.addEventListener('click', listener);
+            this.eventListeners.set('toolsMenuBtn', listener);
+        }
+
+        const settingsMenuBtn = this.elements.get('settingsMenuBtn');
+        if (settingsMenuBtn) {
+            const listener = (e) => {
+                e.stopPropagation();
+                this.toggleMenu('settings');
+            };
+            settingsMenuBtn.addEventListener('click', listener);
+            this.eventListeners.set('settingsMenuBtn', listener);
+        }
+
+        // Save dropdown items in the new menu
+        const fileMenuPanel = this.elements.get('fileMenuPanel');
+        if (fileMenuPanel) {
+            const listener = (e) => {
+                if (e.target.classList.contains('menu-item-small')) {
+                    const saveType = e.target.dataset.saveType;
+                    this.onSaveClick(saveType);
+                    this.hideAllMenus();
+                }
+            };
+            fileMenuPanel.addEventListener('click', listener);
+            this.eventListeners.set('fileMenuPanel', listener);
+        }
+
+
+
+
+
+        // Close menus when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.toolbar-menu')) {
+                this.hideAllMenus();
+            }
+        });
+
+        // Close menus when pressing escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hideAllMenus();
+            }
+        });
     }
 
     /**
@@ -340,25 +399,7 @@ export class Controls {
         this.dispatchEvent('shaderSaveRequested', { saveType });
     }
 
-    /**
-     * Toggle save dropdown visibility
-     */
-    toggleSaveDropdown() {
-        const dropdown = this.elements.get('saveDropdown');
-        if (dropdown) {
-            dropdown.classList.toggle('show');
-        }
-    }
-
-    /**
-     * Hide save dropdown
-     */
-    hideSaveDropdown() {
-        const dropdown = this.elements.get('saveDropdown');
-        if (dropdown) {
-            dropdown.classList.remove('show');
-        }
-    }
+    // Note: Old save dropdown methods removed - now using menu system
 
     /**
      * Handle export button click
@@ -486,13 +527,23 @@ export class Controls {
         if (recordBtn) {
             if (isRecording) {
                 recordBtn.classList.add('recording');
-                recordBtn.querySelector('.btn-text').textContent = 'Stop';
-                recordBtn.querySelector('.btn-icon').textContent = '⏹';
+                
+                // Update text and icon if they exist (handle both toolbar and menu structures)
+                const btnText = recordBtn.querySelector('.btn-text') || recordBtn.querySelector('.menu-text');
+                const btnIcon = recordBtn.querySelector('.btn-icon') || recordBtn.querySelector('.menu-icon');
+                
+                if (btnText) btnText.textContent = 'Stop';
+                if (btnIcon) btnIcon.textContent = '⏹';
                 recordBtn.title = 'Stop recording';
             } else {
                 recordBtn.classList.remove('recording');
-                recordBtn.querySelector('.btn-text').textContent = 'Record';
-                recordBtn.querySelector('.btn-icon').textContent = '🎥';
+                
+                // Update text and icon if they exist (handle both toolbar and menu structures)
+                const btnText = recordBtn.querySelector('.btn-text') || recordBtn.querySelector('.menu-text');
+                const btnIcon = recordBtn.querySelector('.btn-icon') || recordBtn.querySelector('.menu-icon');
+                
+                if (btnText) btnText.textContent = 'Record Video';
+                if (btnIcon) btnIcon.textContent = '🎥';
                 recordBtn.title = 'Record video';
             }
         }
@@ -623,6 +674,51 @@ export class Controls {
         this.elements.delete(name);
         this.eventListeners.delete(name);
     }
+
+    /**
+     * Toggle menu visibility
+     * @param {string} menuName - The menu to toggle ('file', 'tools', 'settings')
+     */
+    toggleMenu(menuName) {
+        const panel = this.elements.get(`${menuName}MenuPanel`);
+        const button = this.elements.get(`${menuName}MenuBtn`);
+        
+        if (!panel || !button) return;
+
+        const isVisible = panel.classList.contains('show');
+        
+        // Hide all other menus first
+        this.hideAllMenus();
+        
+        if (!isVisible) {
+            // Show this menu
+            panel.classList.add('show');
+            button.classList.add('active');
+        }
+    }
+
+    /**
+     * Hide all menus
+     */
+    hideAllMenus() {
+        const menus = ['file', 'tools', 'settings'];
+        
+        menus.forEach(menuName => {
+            const panel = this.elements.get(`${menuName}MenuPanel`);
+            const button = this.elements.get(`${menuName}MenuBtn`);
+            
+            if (panel) {
+                panel.classList.remove('show');
+            }
+            if (button) {
+                button.classList.remove('active');
+            }
+        });
+    }
+
+
+
+
 
     /**
      * Dispatch a custom event
