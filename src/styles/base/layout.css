@@ -43,8 +43,8 @@
     overflow: hidden;
 }
 
-/* Collapsible Uniform Overlay */
-.uniform-overlay {
+/* Collapsible Settings Overlay */
+.settings-overlay {
     position: absolute;
     top: 0;
     right: 0;
@@ -55,7 +55,7 @@
     display: flex;
 }
 
-.uniform-overlay.collapsed {
+.settings-overlay.collapsed {
     transform: translateX(272px);
 }
 
@@ -73,27 +73,26 @@
     align-items: center;
 }
 
-.uniform-toggle {
+.settings-toggle {
     width: 32px;
     height: 32px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-primary);
-    border-right: none;
-    border-top-left-radius: var(--border-radius);
-    border-bottom-left-radius: var(--border-radius);
+    border-radius: var(--border-radius);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all var(--transition-fast);
-    margin-top: 16px;
-    margin-bottom: 8px;
+    margin: 16px auto 8px auto;
     box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
     flex-shrink: 0;
+    color: var(--text-secondary);
 }
 
-.uniform-toggle:hover {
+.settings-toggle:hover {
     background: var(--bg-tertiary);
+    color: var(--text-primary);
     transform: translateX(-2px);
 }
 
@@ -103,11 +102,11 @@
     transition: transform var(--transition-fast);
 }
 
-.uniform-overlay.collapsed .toggle-icon {
+.settings-overlay.collapsed .toggle-icon {
     transform: rotate(180deg);
 }
 
-.uniform-overlay .settings-panel {
+.settings-overlay .settings-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -267,13 +266,13 @@
         cursor: row-resize;
     }
     
-    .uniform-overlay {
+    .settings-overlay {
         width: 280px;
         position: fixed;
         z-index: 1000;
     }
     
-    .uniform-overlay.collapsed {
+    .settings-overlay.collapsed {
         transform: translateX(232px);
     }
     
@@ -281,7 +280,7 @@
         width: 44px;
     }
     
-    .uniform-toggle {
+    .settings-toggle {
         width: 28px;
         height: 28px;
     }

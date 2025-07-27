@@ -1,12 +1,12 @@
 /**
- * PanelManager - Handles resizable panels with splitter and collapsible uniform overlay
+ * PanelManager - Handles resizable panels with splitter and collapsible settings overlay
  */
 export class PanelManager {
     constructor() {
         this.splitter = null;
         this.isDragging = false;
         this.dragData = null;
-        this.uniformOverlay = null;
+        this.settingsOverlay = null;
         
         // Simplified layout configuration (just editor/canvas split)
         this.layoutConfig = {
@@ -21,7 +21,7 @@ export class PanelManager {
      */
     init() {
         this.setupSplitter();
-        this.setupUniformOverlay();
+        this.setupSettingsOverlay();
         this.setupEventListeners();
         this.loadLayoutConfig();
     }
@@ -44,15 +44,15 @@ export class PanelManager {
     }
 
     /**
-     * Setup the collapsible uniform overlay and vertical tabs
+     * Setup the collapsible settings overlay and vertical tabs
      */
-    setupUniformOverlay() {
-        this.uniformOverlay = document.getElementById('uniformOverlay');
-        const toggleBtn = document.getElementById('uniformToggle');
+    setupSettingsOverlay() {
+        this.settingsOverlay = document.getElementById('settingsOverlay');
+        const toggleBtn = document.getElementById('settingsToggle');
         
-        if (toggleBtn && this.uniformOverlay) {
+        if (toggleBtn && this.settingsOverlay) {
             toggleBtn.addEventListener('click', () => {
-                this.toggleUniformOverlay();
+                this.toggleSettingsOverlay();
             });
         }
         
@@ -72,8 +72,8 @@ export class PanelManager {
                 const tabId = button.dataset.tab;
                 
                 // If panel is collapsed, expand it first
-                if (this.uniformOverlay && this.uniformOverlay.classList.contains('collapsed')) {
-                    this.toggleUniformOverlay();
+                if (this.settingsOverlay && this.settingsOverlay.classList.contains('collapsed')) {
+                    this.toggleSettingsOverlay();
                 }
                 
                 // Then switch to the requested tab
@@ -107,15 +107,15 @@ export class PanelManager {
     }
 
     /**
-     * Toggle the uniform overlay expanded/collapsed
+     * Toggle the settings overlay expanded/collapsed
      */
-    toggleUniformOverlay() {
-        if (this.uniformOverlay) {
-            this.uniformOverlay.classList.toggle('collapsed');
+    toggleSettingsOverlay() {
+        if (this.settingsOverlay) {
+            this.settingsOverlay.classList.toggle('collapsed');
             
             // Save state to localStorage
-            const isCollapsed = this.uniformOverlay.classList.contains('collapsed');
-            localStorage.setItem('uniformOverlayCollapsed', isCollapsed);
+            const isCollapsed = this.settingsOverlay.classList.contains('collapsed');
+            localStorage.setItem('settingsOverlayCollapsed', isCollapsed);
         }
     }
 
@@ -240,12 +240,12 @@ export class PanelManager {
                 this.layoutConfig.leftWidth = config.leftWidth || 50;
             }
             
-            // Load uniform overlay state
-            const uniformCollapsed = localStorage.getItem('uniformOverlayCollapsed');
-            if (uniformCollapsed === 'true' && this.uniformOverlay) {
-                this.uniformOverlay.classList.add('collapsed');
-            } else if (uniformCollapsed === 'false' && this.uniformOverlay) {
-                this.uniformOverlay.classList.remove('collapsed');
+            // Load settings overlay state
+            const settingsCollapsed = localStorage.getItem('settingsOverlayCollapsed');
+            if (settingsCollapsed === 'true' && this.settingsOverlay) {
+                this.settingsOverlay.classList.add('collapsed');
+            } else if (settingsCollapsed === 'false' && this.settingsOverlay) {
+                this.settingsOverlay.classList.remove('collapsed');
             }
             
             // Load active tab state (handled in setupVerticalTabs)

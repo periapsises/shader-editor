@@ -238,6 +238,7 @@
     font-size: var(--font-xl);
     word-break: break-word;
     flex: 1;
+    cursor: pointer;
 }
 
 .uniform-meta {
@@ -682,13 +683,13 @@
     background: var(--accent-primary);
     color: white;
     border: none;
-    padding: var(--spacing-sm) var(--spacing-lg);
+    padding: var(--spacing-xs);
     border-radius: var(--border-radius-sm);
     cursor: pointer;
-    font-size: var(--font-sm);
+    font-size: var(--font-xs);
     transition: background-color var(--transition-fast);
-    min-width: 2rem;
-    height: 2rem;
+    min-width: 1.5rem;
+    height: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -702,13 +703,13 @@
     background: var(--accent-danger);
     color: white;
     border: none;
-    padding: var(--spacing-sm) var(--spacing-lg);
+    padding: var(--spacing-xs);
     border-radius: var(--border-radius-sm);
     cursor: pointer;
-    font-size: var(--font-md);
+    font-size: var(--font-xs);
     transition: background-color var(--transition-fast);
-    min-width: 2rem;
-    height: 2rem;
+    min-width: 1.5rem;
+    height: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -716,6 +717,44 @@
 
 .delete-btn:hover {
     background: var(--accent-danger-hover);
+}
+
+.collapse-toggle-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-secondary);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-xs);
+    transition: all var(--transition-fast);
+    min-width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.collapse-toggle-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-accent);
+}
+
+/* Collapsed uniform styling */
+.uniform-item.collapsed {
+    padding-bottom: var(--spacing-lg);
+}
+
+.uniform-item.collapsed .uniform-details {
+    display: none;
+}
+
+/* Uniform details section */
+.uniform-details {
+    margin-top: var(--spacing-lg);
+    transition: all var(--transition-fast);
 }
 
 /* Responsive uniforms */
